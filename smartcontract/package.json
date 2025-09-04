@@ -1,0 +1,73 @@
+{
+  "name": "yield-circle-smart-contracts",
+  "version": "2.0.0",
+  "description": "Production-ready YieldCircle smart contracts with enhanced security and DeFi integration",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:coverage": "hardhat coverage",
+    "deploy": "hardhat run scripts/deploy.js",
+    "deploy:testnet": "hardhat run scripts/deploy.js --network testnet",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network mainnet",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
+    "deploy:kaia-mainnet": "hardhat run scripts/deploy.js --network kaia-mainnet",
+    "deploy:kaia-testnet": "hardhat run scripts/deploy.js --network kaia-testnet",
+    "find-addresses": "hardhat run scripts/find-kaia-addresses.js",
+    "verify": "hardhat verify",
+    "lint": "solhint 'contracts/**/*.sol'",
+    "lint:fix": "solhint 'contracts/**/*.sol' --fix",
+    "size": "hardhat size-contracts",
+    "gas": "REPORT_GAS=true hardhat test",
+    "audit": "npm audit && slither .",
+    "clean": "hardhat clean",
+    "node": "hardhat node",
+    "console": "hardhat console",
+    "setup-vrf": "echo 'Visit https://vrf.chain.link to create subscription'",
+    "check-config": "node -e \"const {validateAddresses, getNetworkConfig} = require('./config/testnet-addresses'); console.log('Validating addresses...'); validateAddresses(getNetworkConfig('sepolia'));\""
+  },
+  "keywords": [
+    "defi",
+    "yield-farming",
+    "smart-contracts",
+    "ethereum",
+    "solidity",
+    "hardhat",
+    "trust-circles",
+    "savings",
+    "kaia",
+    "chainlink-vrf"
+  ],
+  "author": "Yield Circle Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@openzeppelin/contracts": "^5.0.0",
+    "@openzeppelin/hardhat-upgrades": "^1.28.0",
+    "chai": "^4.3.7",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "solidity-coverage": "^0.8.5",
+    "typescript": "^4.9.5",
+    "@types/node": "^18.15.11"
+  },
+  "dependencies": {
+    "@chainlink/contracts": "^0.8.0",
+    "@openzeppelin/contracts-upgradeable": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yieldcircle/smart-contracts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yieldcircle/smart-contracts/issues"
+  },
+  "homepage": "https://yieldcircle.com"
+}
