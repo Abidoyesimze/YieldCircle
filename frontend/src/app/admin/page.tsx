@@ -46,10 +46,9 @@ export default function SchoolFeesDashboard() {
   const { dayNames, days } = generateCalendar();
 
   return (
-    <div className="min-h-screen bg-black text-white p-6" >
+    <div className="min-h-screen bg-black text-white p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        
+      <div className="flex justify-center items-center mb-8">
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gray-700 rounded flex items-center justify-center">
