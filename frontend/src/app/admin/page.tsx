@@ -119,7 +119,7 @@ export default function SchoolFeesDashboard() {
         {/* Middle Column - Stats Cards */}
         <div className="col-span-3 space-y-4">
           {/* Reward */}
-          <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+          <div className="bgblack-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-400 text-xs">Reward</p>
@@ -130,7 +130,7 @@ export default function SchoolFeesDashboard() {
           </div>
 
           {/* Next Payout */}
-          <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-400 text-xs">Next Payout</p>
@@ -141,7 +141,7 @@ export default function SchoolFeesDashboard() {
           </div>
 
           {/* Exit APY */}
-          <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-400 text-xs">Exit APY</p>
@@ -152,7 +152,7 @@ export default function SchoolFeesDashboard() {
           </div>
 
           {/* Risk Level */}
-          <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-400 text-xs">Risk Level</p>
@@ -165,7 +165,7 @@ export default function SchoolFeesDashboard() {
 
         {/* Right Column - Calendar */}
         <div className="col-span-6">
-          <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6 h-full">
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6 h-full">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-semibold">September</h3>
               <div className="text-sm text-gray-400">
@@ -176,7 +176,6 @@ export default function SchoolFeesDashboard() {
                 })}
               </div>
             </div>
-            
             {/* Calendar Header */}
             <div className="grid grid-cols-7 gap-2 mb-4">
               {dayNames.map(day => (
@@ -216,7 +215,7 @@ export default function SchoolFeesDashboard() {
       {/* Bottom Row: Three Cards */}
       <div className="grid grid-cols-3 gap-6">
         {/* Members Card */}
-        <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-6">Members</h3>
           <div className="space-y-5">
             {members.map((member, index) => (
@@ -242,7 +241,7 @@ export default function SchoolFeesDashboard() {
         </div>
 
         {/* Contribution Level Card */}
-        <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-6">Contribution Level</h3>
           <div className="flex items-center justify-center mb-6">
             <div className="relative w-28 h-28">
@@ -288,7 +287,7 @@ export default function SchoolFeesDashboard() {
         </div>
 
         {/* Activity Card */}
-        <div className="bg-gray-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold">Activity</h3>
             <div className="relative w-16 h-16">
