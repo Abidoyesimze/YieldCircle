@@ -4,60 +4,136 @@ export default function KeyFeatures() {
       <div className="max-w-7xl mx-auto">
         {/* Key Features */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white mb-12">Key Features</h2>
+          <h2 
+            className="text-white mb-12"
+            style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '24px',
+              fontWeight: 600,
+              lineHeight: '100%',
+              letterSpacing: '0%'
+            }}
+          >
+            Key Features
+          </h2>
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Feature 1 */}
-            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-6">
-              <div className="w-12 h-12 bg-teal-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                  />
+            <div 
+              className="bg-black-950 rounded-lg p-6"
+              style={{
+                border: '1px solid',
+                borderImageSource: 'linear-gradient(126.45deg, #DA35E9 -31.48%, #F3EECC -0.74%, #DA35E9 43.88%, #121212 80.67%)',
+                borderImageSlice: 1
+              }}
+            >
+              <div className="mb-4 flex justify-start">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 3L2 9v2h20V9l-10-6zM2 13v6h2v-6H2zm4 6h2v-6H6v6zm4 0h2v-6h-2v6zm4 0h2v-6h-2v6zm4 0h2v-6h-2v6zm2 2v2H2v-2h20z"/>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">Your Money Works for You</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Your pooled contributions are strategically invested using AI-powered strategies for better returns than
-                you could achieve on your own.
+              <h3 
+                className="text-white mb-3 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 400,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Your Money Works for You
+              </h3>
+              <p 
+                className="text-gray-400 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 300,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Your pooled contributions are<br /> strategically invested with AI-powered<br /> strategies, so your money grows while you<br /> save.
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-6">
-              <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                  />
+            <div 
+              className="bg-black-900/50 rounded-lg p-6"
+              style={{
+                border: '1px solid',
+                borderImageSource: 'linear-gradient(126.45deg, #ED1E79 -31.48%, #F3EECC -0.51%, #ED1E79 34.58%, #121212 80.67%)',
+                borderImageSlice: 1
+              }}
+            >
+              <div className="mb-4 flex justify-start">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 3L2 9v2h20V9l-10-6zM2 13v6h2v-6H2zm4 6h2v-6H6v6zm4 0h2v-6h-2v6zm4 0h2v-6h-2v6zm2 2v2H2v-2h20z"/>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">Simple and Reliable Trust</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Our members build a trust score from their saving history, so circles stay safe and dependable.
+              <h3 
+                className="text-white mb-3 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 400,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Simple and Reliable Trust
+              </h3>
+              <p 
+                className="text-gray-400 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 300,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Each member builds a trust score from<br /> their saving history, so circles stay safe<br /> and dependable.
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-6">
-              <div className="w-12 h-12 bg-pink-500/20 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
+            <div 
+              className="bg-lack-900/50 rounded-lg p-6"
+              style={{
+                border: '1px solid',
+                borderImageSource: 'linear-gradient(126.45deg, #7AC2BC -31.48%, #F3EECC 21.92%, #7AC2BC 43.88%, #121212 80.67%)',
+                borderImageSlice: 1
+              }}
+            >
+              <div className="mb-4 flex justify-start">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 3L2 9v2h20V9l-10-6zM2 13v6h2v-6H2zm4 6h2v-6H6v6zm4 0h2v-6h-2v6zm4 0h2v-6h-2v6zm2 2v2H2v-2h20z"/>
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-white mb-3">Designed for Real Life</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Whether it's local ties, emergencies, or group goals, our platform works seamlessly through LINE.
+              <h3 
+                className="text-white mb-3 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 400,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Designed for Real Life
+              </h3>
+              <p 
+                className="text-gray-400 text-left"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '10px',
+                  fontWeight: 300,
+                  lineHeight: '100%',
+                  letterSpacing: '0%'
+                }}
+              >
+                Whether it's school fees, emergencies, or group<br /> trips, you can set flexible goals and manage<br /> everything easily through LINE.
               </p>
             </div>
           </div>
@@ -66,11 +142,33 @@ export default function KeyFeatures() {
         {/* Bottom Section */}
         <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
           {/* Make Contribution Form */}
-          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-8">
-            <h3 className="text-xl font-semibold text-white mb-6">Make Contribution</h3>
+          <div className="bg-black border border-gray-700 rounded-lg p-20 w-full max-w-md">
+            <h3 
+              className="text-white mb-6"
+              style={{
+                fontFamily: 'Figtree',
+                fontSize: '20px',
+                fontWeight: 700,
+                lineHeight: '22px',
+                letterSpacing: '-2%'
+              }}
+            >
+              Make Contribution
+            </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
+                <label 
+                  className="block text-gray-300 mb-2"
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    lineHeight: '100%',
+                    letterSpacing: '0%'
+                  }}
+                >
+                  Amount
+                </label>
                 <input
                   type="text"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -78,7 +176,18 @@ export default function KeyFeatures() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Wallet Address</label>
+                <label 
+                  className="block text-gray-300 mb-2"
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    lineHeight: '100%',
+                    letterSpacing: '0%'
+                  }}
+                >
+                  Wallet Address
+                </label>
                 <input
                   type="text"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -86,7 +195,18 @@ export default function KeyFeatures() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Family</label>
+                <label 
+                  className="block text-gray-300 mb-2"
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    lineHeight: '100%',
+                    letterSpacing: '0%'
+                  }}
+                >
+                  Family
+                </label>
                 <input
                   type="text"
                   className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
@@ -96,17 +216,86 @@ export default function KeyFeatures() {
             </div>
           </div>
 
-          {/* Kaia + Line Integration */}
+          {/* Kaia + Line Integration - Updated Design */}
           <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-8">
-              <div className="w-32 h-32 rounded-full border-2 border-teal-500 flex items-center justify-center bg-gray-900">
-                <span className="text-2xl font-bold text-white">Kaia</span>
+            <div 
+              className="relative flex items-center"
+              style={{
+                width: '518.74px',
+                height: '226px',
+                border: '1px'
+              }}
+            >
+              {/* Kaia Circle */}
+              <div 
+                className="absolute left-0 top-0 bg-black border border-gray-700 rounded-full flex items-center justify-center"
+                style={{
+                  width: '226px',
+                  height: '226px',
+                  border: '1px solid #BFF009'
+                }}
+              >
+                <span 
+                  className="text-white"
+                  style={{
+                    fontFamily: 'Inknut Antiqua, serif',
+                    fontSize: '48px',
+                    fontWeight: 900,
+                    lineHeight: '100%',
+                    letterSpacing: '0%'
+                  }}
+                >
+                  Kaia
+                </span>
               </div>
-              <div className="w-8 h-8 rounded-full bg-teal-500 flex items-center justify-center">
-                <span className="text-black font-bold text-sm">+</span>
+
+              {/* Middle Character/Image */}
+              <div 
+                className="absolute bg-gray-900 rounded-full flex items-center justify-center border overflow-hidden"
+                style={{
+                  width: '118.57px',
+                  height: '115.90px',
+                  left: '204.78px',
+                  top: '55.05px',
+                  borderRadius: '100px',
+                  padding: '10px',
+                  border: '1px solid #BFF009',
+                  backgroundColor: '#1a1a1a'
+                }}
+              >
+                
+                <img 
+                  src="/kaia.png" 
+                  alt="Connection Symbol"
+                  className="w-full h-full object-cover rounded-full"
+                  style={{
+                    width: '98.57px',
+                    height: '95.90px'
+                  }}
+                />
               </div>
-              <div className="w-32 h-32 rounded-full border-2 border-teal-500 flex items-center justify-center bg-gray-900">
-                <span className="text-2xl font-bold text-white">Line</span>
+
+              {/* Line Circle */}
+              <div 
+                className="absolute right-0 top-0 bg-black border rounded-full flex items-center justify-center"
+                style={{
+                  width: '226px',
+                  height: '226px',
+                  border: '1px solid #BFF009'
+                }}
+              >
+                <span 
+                  className="text-white"
+                  style={{
+                    fontFamily: 'Inknut Antiqua, serif',
+                    fontSize: '48px',
+                    fontWeight: 900,
+                    lineHeight: '100%',
+                    letterSpacing: '0%'
+                  }}
+                >
+                  Line
+                </span>
               </div>
             </div>
           </div>
