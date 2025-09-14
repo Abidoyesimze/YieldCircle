@@ -19,5 +19,6 @@
 # Hardhat coverage reports
 /coverage
 
-# environment variable
+# dotenv environment variable files
 .env
+
