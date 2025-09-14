@@ -23,17 +23,17 @@ module.exports = {
       url: "http://127.0.0.1:8545",
     },
     sepolia: {
-      url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/YOUR-PROJECT-ID",
+      url: process.env.SEPOLIA_URL || "https://rpc.sepolia.org",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 11155111,
     },
     goerli: {
-      url: process.env.GOERLI_URL || "https://goerli.infura.io/v3/YOUR-PROJECT-ID",
+      url: process.env.GOERLI_URL || "https://rpc.ankr.com/eth_goerli",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 5,
     },
     mainnet: {
-      url: process.env.MAINNET_URL || "https://mainnet.infura.io/v3/YOUR-PROJECT-ID",
+      url: process.env.MAINNET_URL || "https://rpc.ankr.com/eth",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 1,
     },
@@ -48,7 +48,7 @@ module.exports = {
       chainId: 56,
     },
     mumbai: {
-      url: process.env.MUMBAI_URL || "https://polygon-mumbai.infura.io/v3/YOUR-PROJECT-ID",
+      url: process.env.MUMBAI_URL || "https://rpc.ankr.com/polygon_mumbai",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 80001,
     },
