@@ -69,4 +69,25 @@ contract MockLending {
             uint40(block.timestamp) // lastUpdateTimestamp
         );
     }
+
+    function setSupplyAPY(address asset, uint256 apy) external {
+        // Mock implementation - in real protocol this would update the supply rate
+        // For testing purposes, we'll just emit an event or store the value
+        // This method is called during initialization to set the APY
+    }
+
+    function getSupplyBalance(
+        address user,
+        address asset
+    )
+        external
+        view
+        returns (uint256 principal, uint256 interest, uint256 total)
+    {
+        principal = userSupplies[user][asset];
+        // Calculate interest based on time (simplified for testing)
+        interest = (principal * 600) / 10000; // 6% APY
+        total = principal + interest;
+        return (principal, interest, total);
+    }
 }

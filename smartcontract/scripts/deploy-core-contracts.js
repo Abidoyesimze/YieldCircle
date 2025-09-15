@@ -68,10 +68,7 @@ async function deployCoreContracts() {
         const KaiaYieldStrategyManager = await ethers.getContractFactory("KaiaYieldStrategyManager");
         const yieldManager = await KaiaYieldStrategyManager.deploy(
             usdt.address,
-            weth.address,
-            usdc.address,
-            router.address,
-            lending.address
+            weth.address  // Using WETH as KAIA for testing
         );
         await yieldManager.deployed();
         console.log(`✅ Yield Strategy Manager: ${yieldManager.address}`);
