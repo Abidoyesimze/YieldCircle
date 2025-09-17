@@ -8,7 +8,7 @@ import MockLending from './MockLending.json';
 
 export const YieldCircleContract = {
     abi: YieldCircle,
-    address: '0x277490C4cc17Ca14A43f0a293656f78E6e10448C', // Individual circle contract (created by factory)
+    address: '0x0000000000000000000000000000000000000000', // Individual circle contract (created by factory)
     
 }
 
