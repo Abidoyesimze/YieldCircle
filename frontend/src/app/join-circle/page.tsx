@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { CheckCircle, AlertCircle, Users, DollarSign, Clock, UserPlus } from "lucide-react"
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
-import { parseEther } from "viem"
+import { useAccount } from "wagmi"
+import { ethers } from "ethers"
 import { contracts } from "@/abi"
 
 export default function JoinCirclePage() {
@@ -16,31 +16,8 @@ export default function JoinCirclePage() {
   const [success, setSuccess] = useState(false)
   const [invitationCode, setInvitationCode] = useState<string | null>(null)
   const [circleId, setCircleId] = useState<string | null>(null)
-
-  // Contract write hook
-  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract()
-  
-  // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  })
-
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      // Transaction confirmed successfully
-      setSuccess(true)
-      setIsJoining(false)
-    }
-  }, [isConfirmed, hash])
-
-  // Handle contract errors
-  useEffect(() => {
-    if (contractError) {
-      setError("Transaction failed. Please try again.")
-      setIsJoining(false)
-    }
-  }, [contractError])
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   useEffect(() => {
     // Parse URL parameters
@@ -96,29 +73,46 @@ export default function JoinCirclePage() {
     try {
       setIsJoining(true)
       
-      // Convert contribution amount to USDT (6 decimals)
-      const contributionAmount = parseEther(circleData.contributionAmount)
-      
       console.log("Joining circle:", {
         circleId: circleData.id,
         member: address,
         contributionAmount: circleData.contributionAmount,
       })
       
-      // Join circle using YieldCircle contract
-      writeContract({
-        address: circleData.id as `0x${string}`, // Circle address from invitation
-        abi: contracts.YieldCircle.abi,
-        functionName: 'joinCircle',
-        args: ['Member'] // Display name for the member
-      })
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
       
-      // Transaction will be handled by useWaitForTransactionReceipt hook
+      // Create contract instance
+      const circleContract = new ethers.Contract(
+        circleData.id, // Circle address from invitation
+        contracts.YieldCircle.abi,
+        signer
+      )
       
-    } catch (err) {
+      // Call joinCircle function
+      const tx = await circleContract.joinCircle('Member') // Display name for the member
+      
+      setTxHash(tx.hash)
+      setIsConfirming(true)
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait()
+      
+      if (receipt.status === 1) {
+        // Transaction successful
+        setSuccess(true)
+        setIsJoining(false)
+        setIsConfirming(false)
+      } else {
+        throw new Error("Transaction failed")
+      }
+      
+    } catch (err: any) {
       console.error("Error joining circle:", err)
-      setError("Failed to join circle. Please try again.")
+      setError(err.message || "Failed to join circle. Please try again.")
       setIsJoining(false)
+      setIsConfirming(false)
     }
   }
 
@@ -300,13 +294,13 @@ export default function JoinCirclePage() {
         {/* Join Button */}
         <Button
           onClick={handleJoinCircle}
-          disabled={!isConnected || isJoining || isPending || isConfirming || circleData?.currentMembers >= circleData?.memberCount}
+          disabled={!isConnected || isJoining || isConfirming || circleData?.currentMembers >= circleData?.memberCount}
           className="w-full bg-teal-400 text-black hover:bg-teal-300 disabled:bg-gray-600 disabled:text-gray-400 transition-all duration-300 h-12 rounded-lg font-medium"
         >
-          {isJoining || isPending || isConfirming ? (
+          {isJoining || isConfirming ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
-              {isPending ? "Confirm in Wallet..." : isConfirming ? "Joining Circle..." : "Joining..."}
+              {isJoining ? "Confirm in Wallet..." : "Joining Circle..."}
             </>
           ) : circleData?.currentMembers >= circleData?.memberCount ? (
             "Circle is Full"
@@ -319,16 +313,16 @@ export default function JoinCirclePage() {
         </Button>
 
         {/* Transaction Hash */}
-        {hash && (
+        {txHash && (
           <div className="text-center mt-4">
             <p className="text-sm text-gray-400">Transaction Hash:</p>
             <a 
-              href={`https://kairos.kaiascope.com/tx/${hash}`}
+              href={`https://kairos.kaiascope.com/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-teal-400 hover:text-teal-300 text-sm break-all"
             >
-              {hash}
+              {txHash}
             </a>
           </div>
         )}

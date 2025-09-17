@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { Plus, Loader2, CheckCircle, AlertCircle } from "lucide-react"
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
-import { parseEther } from "viem"
+import { useAccount } from "wagmi"
+import { ethers } from "ethers"
 import { contracts } from "@/abi"
 
 export default function CreateCirclePage() {
@@ -23,35 +23,8 @@ export default function CreateCirclePage() {
   const [circleId, setCircleId] = useState<string | null>(null)
   const [invitationLink, setInvitationLink] = useState<string | null>(null)
   const [members, setMembers] = useState<string[]>([address || ""])
-
-  // Contract write hook
-  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract()
-  
-  // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  })
-
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      // Transaction confirmed successfully
-      const newCircleId = generateCircleId()
-      setCircleId(newCircleId)
-      const link = generateInvitationLink(newCircleId)
-      setInvitationLink(link)
-      setSuccess(true)
-      setIsCreating(false)
-    }
-  }, [isConfirmed, hash])
-
-  // Handle contract errors
-  useEffect(() => {
-    if (contractError) {
-      setError("Transaction failed. Please try again.")
-      setIsCreating(false)
-    }
-  }, [contractError])
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -111,7 +84,7 @@ export default function CreateCirclePage() {
       setCircleId(newCircleId)
       
       // Convert contribution amount to USDT (6 decimals)
-      const contributionAmount = parseEther(formData.contributionAmount)
+      const contributionAmount = ethers.parseUnits(formData.contributionAmount, 6)
       
       // Convert cycle duration to seconds
       const cycleDurationSeconds = BigInt(parseInt(formData.cycleDuration) * 24 * 60 * 60)
@@ -129,26 +102,48 @@ export default function CreateCirclePage() {
         members: initialMembers,
       })
       
-      // Create circle using YieldCircleFactory
-      writeContract({
-        address: contracts.YieldCircleFactory.address as `0x${string}`,
-        abi: contracts.YieldCircleFactory.abi,
-        functionName: 'createCircle',
-        args: [
-          'family', // template name (family, friends, community)
-          initialMembers,
-          contributionAmount,
-          cycleDurationSeconds,
-          formData.circleName
-        ]
-      })
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
       
-      // Transaction will be handled by useWaitForTransactionReceipt hook
+      // Create contract instance
+      const factoryContract = new ethers.Contract(
+        contracts.YieldCircleFactory.address,
+        contracts.YieldCircleFactory.abi,
+        signer
+      )
       
-    } catch (err) {
+      // Call createCircle function
+      const tx = await factoryContract.createCircle(
+        'family', // template name
+        initialMembers,
+        contributionAmount,
+        cycleDurationSeconds,
+        formData.circleName
+      )
+      
+      setTxHash(tx.hash)
+      setIsConfirming(true)
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait()
+      
+      if (receipt.status === 1) {
+        // Transaction successful
+        const link = generateInvitationLink(newCircleId)
+        setInvitationLink(link)
+        setSuccess(true)
+        setIsCreating(false)
+        setIsConfirming(false)
+      } else {
+        throw new Error("Transaction failed")
+      }
+      
+    } catch (err: any) {
       console.error("Error creating circle:", err)
-      setError("Failed to create circle. Please try again.")
+      setError(err.message || "Failed to create circle. Please try again.")
       setIsCreating(false)
+      setIsConfirming(false)
     }
   }
 
@@ -411,13 +406,13 @@ export default function CreateCirclePage() {
             {/* Create Button */}
         <Button
           type="submit"
-          disabled={!isConnected || isCreating || isPending || isConfirming}
+          disabled={!isConnected || isCreating || isConfirming}
           className="w-full bg-teal-400 text-black hover:bg-teal-300 disabled:bg-gray-600 disabled:text-gray-400 transition-all duration-300 h-12 rounded-lg font-medium"
         >
-          {isCreating || isPending || isConfirming ? (
+          {isCreating || isConfirming ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {isPending ? "Confirm in Wallet..." : isConfirming ? "Creating Circle..." : "Creating..."}
+              {isCreating ? "Confirm in Wallet..." : "Creating Circle..."}
             </>
           ) : (
             <>
@@ -428,16 +423,16 @@ export default function CreateCirclePage() {
         </Button>
 
             {/* Transaction Hash */}
-            {hash && (
+            {txHash && (
               <div className="text-center">
                 <p className="text-sm text-gray-400">Transaction Hash:</p>
                 <a 
-                  href={`https://kairos.kaiascope.com/tx/${hash}`}
+                  href={`https://kairos.kaiascope.com/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-teal-400 hover:text-teal-300 text-sm break-all"
                 >
-                  {hash}
+                  {txHash}
                 </a>
               </div>
             )}
