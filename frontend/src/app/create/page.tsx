@@ -90,11 +90,13 @@ export default function CreateCirclePage() {
       const cycleDurationSeconds = BigInt(parseInt(formData.cycleDuration) * 24 * 60 * 60)
       
       // Create circle with minimum required members for family template (3 members)
-      // We need unique addresses - using creator's address with slight modifications
+      // We need unique addresses - using valid placeholder addresses
       // In a real implementation, you'd collect member addresses beforehand
       const creatorAddress = address!
-      const member2 = creatorAddress.slice(0, -1) + '1' // Change last character
-      const member3 = creatorAddress.slice(0, -1) + '2' // Change last character
+      
+      // Use valid Ethereum addresses (these are commonly used test addresses)
+      const member2 = '0x742d35Cc6634C0532925a3b8D0C0C1C1C1C1C1C1' // Valid test address
+      const member3 = '0xdD2FD4581271e230360230F9337D5c0430Bf44C0' // Valid test address
       
       const initialMembers = [
         creatorAddress, // Creator
