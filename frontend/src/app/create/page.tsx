@@ -95,8 +95,8 @@ export default function CreateCirclePage() {
       const creatorAddress = address!
       
       // Use valid Ethereum addresses (these are commonly used test addresses)
-      const member2 = '0x742d35Cc6634C0532925a3b8D0C0C1C1C1C1C1C1' // Valid test address
-      const member3 = '0xdD2FD4581271e230360230F9337D5c0430Bf44C0' // Valid test address
+      const member2 = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' // Valid test address
+      const member3 = '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC' // Valid test address
       
       const initialMembers = [
         creatorAddress, // Creator
