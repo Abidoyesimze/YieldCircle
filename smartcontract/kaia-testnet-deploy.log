@@ -1,0 +1,7 @@
+[dotenv@17.2.2] injecting env (0) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[dotenv@17.2.2] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🚀 Deploying YieldCircle contracts to Kaia Kairos Testnet...
+👤 Deployer: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+💰 Balance: 788.89118499 KAIA
+
+📦 Deploying Mock Tokens...
