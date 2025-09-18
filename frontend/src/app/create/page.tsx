@@ -143,11 +143,74 @@ export default function CreateCirclePage() {
         signer
       )
       
-      // Check if contract exists
-      const code = await provider.getCode(contracts.YieldCircleFactory.address)
-      if (code === '0x') {
-        throw new Error(`No contract found at address ${contracts.YieldCircleFactory.address}`)
-      }
+              // Check if contract exists
+              const code = await provider.getCode(contracts.YieldCircleFactory.address)
+              if (code === '0x') {
+                throw new Error(`No contract found at address ${contracts.YieldCircleFactory.address}`)
+              }
+              
+              // Check if contract is paused
+              try {
+                const isPaused = await factoryContract.paused()
+                console.log("Contract paused status:", isPaused)
+                if (isPaused) {
+                  throw new Error("Contract is currently paused")
+                }
+              } catch (err) {
+                console.log("Could not check pause status:", err)
+              }
+              
+              // Check template status
+              try {
+                const template = await factoryContract.templates('family')
+                console.log("Family template:", {
+                  name: template.name,
+                  minMembers: template.minMembers.toString(),
+                  maxMembers: template.maxMembers.toString(),
+                  minContribution: template.minContribution.toString(),
+                  maxContribution: template.maxContribution.toString(),
+                  isActive: template.isActive,
+                  allowedDurations: template.allowedDurations.map(d => d.toString())
+                })
+              } catch (err) {
+                console.log("Could not check template:", err)
+              }
+              
+              // Check user's circle count and creation delay
+              try {
+                const userCircleCount = await factoryContract.circleCount(address)
+                const lastCreation = await factoryContract.lastCircleCreation(address)
+                const minDelay = await factoryContract.minCircleCreationDelay()
+                const currentTime = Math.floor(Date.now() / 1000)
+                
+                console.log("User limits:", {
+                  circleCount: userCircleCount.toString(),
+                  lastCreation: lastCreation.toString(),
+                  minDelay: minDelay.toString(),
+                  currentTime: currentTime,
+                  canCreate: currentTime >= parseInt(lastCreation.toString()) + parseInt(minDelay.toString())
+                })
+              } catch (err) {
+                console.log("Could not check user limits:", err)
+              }
+              
+              // Check contract dependencies
+              try {
+                const usdtAddress = await factoryContract.USDT()
+                const yieldManagerAddress = await factoryContract.yieldManager()
+                const randomGeneratorAddress = await factoryContract.randomGenerator()
+                
+                console.log("Contract dependencies:", {
+                  usdt: usdtAddress,
+                  yieldManager: yieldManagerAddress,
+                  randomGenerator: randomGeneratorAddress,
+                  expectedUSDT: contracts.USDT.address,
+                  expectedYieldManager: contracts.KaiaYieldStrategyManager.address,
+                  expectedRandomGenerator: contracts.RandomGenerator.address
+                })
+              } catch (err) {
+                console.log("Could not check dependencies:", err)
+              }
       
       console.log("Calling createCircle with:", {
         template: 'family',
