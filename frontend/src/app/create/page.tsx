@@ -108,9 +108,9 @@ export default function CreateCirclePage() {
       // These will be replaced when people join via invitation links
       const placeholderAddresses: string[] = []
       for (let i = 1; i < targetMemberCount; i++) {
-        // Generate a valid placeholder address (will be replaced when someone joins)
-        // Using a pattern that's clearly a placeholder
-        const placeholder = `0x${'1'.repeat(40)}`
+        // Generate unique placeholder addresses to avoid DuplicateMember error
+        // Using different patterns for each placeholder
+        const placeholder = `0x${'1'.repeat(8)}${i.toString().padStart(8, '0')}${'1'.repeat(24)}`
         placeholderAddresses.push(placeholder)
       }
       

@@ -339,8 +339,21 @@ const FinancialDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-teal-400 mx-auto mb-4" />
-          <p className="text-gray-400">Loading circles...</p>
+          <div className="relative">
+            {/* Outer spinning ring */}
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-700 mx-auto mb-4"></div>
+            {/* Inner spinning ring */}
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-transparent border-t-teal-400 border-r-purple-400 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+            {/* Center dot */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-teal-400 rounded-full"></div>
+          </div>
+          <h2 className="text-xl font-semibold mb-2 text-teal-400">Discovering Circles</h2>
+          <p className="text-gray-400 mb-4">Fetching available circles from the blockchain...</p>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <div className="animate-pulse">●</div>
+            <div className="animate-pulse" style={{ animationDelay: '0.2s' }}>●</div>
+            <div className="animate-pulse" style={{ animationDelay: '0.4s' }}>●</div>
+          </div>
         </div>
       </div>
     );
