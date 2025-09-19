@@ -1,5 +1,6 @@
 import YieldCircle from './YieldCircle.json';
 import YieldCircleFactory from './YieldCircleFactory.json';
+import SimpleYieldCircleFactory from './SimpleYieldCircleFactory.json';
 import KaiaYieldStrategyManager from './KaiaYieldStrategyManager.json';
 import RandomGenerator from './RandomGenerator.json';
 import MockERC20 from './MockERC20.json';
@@ -8,25 +9,27 @@ import MockLending from './MockLending.json';
 
 export const YieldCircleContract = {
     abi: YieldCircle,
-    address: '0x0000000000000000000000000000000000000000', // Individual circle contract (created by factory)
+    address: '0x277490C4cc17Ca14A43f0a293656f78E6e10448C', // Individual circle contract (created by factory)
     
 }
 
-export const YieldCircleFactoryContract = {
-    abi: YieldCircleFactory,
-    address: '0x277490C4cc17Ca14A43f0a293656f78E6e10448C', // Factory contract that creates circles
+
+
+export const SimpleYieldCircleFactoryContract = {
+    abi: SimpleYieldCircleFactory,
+    address: '0x0F939ed454028c4edC7bA14cdB09d5E660Bd0fd8', // Working test factory contract that creates circles
     
 }
 
 export const KaiaYieldStrategyManagerContract = {
     abi: KaiaYieldStrategyManager,
-    address: '0xf81F832BaBc8753477B56DD4f73334c69b7Ed442',
+    address: '0x789FF5585c2de03Be045d8866e69be0a3cf54744',
     
 }
 
 export const RandomGeneratorContract = {
     abi: RandomGenerator,
-    address: '0x654448cee799e8bdeF8e217cFeD1f3a09e17167B',
+    address: '0xc9843a1aF776BEe8bDb55b94fD23bE2dbf457AbD',
     
 }
 
@@ -34,17 +37,17 @@ export const RandomGeneratorContract = {
 // Additional contracts
 export const USDTContract = {
     abi: MockERC20, // Using MockERC20 ABI for USDT
-    address: '0x89fde6067B334226f1BdA9f077eFB6d48f0e1443',
+    address: '0xFE2e76f1DcF3A706e34cCB6083125D4A4a59876E',
 }
 
 export const USDCContract = {
     abi: MockERC20, // Using MockERC20 ABI for USDC
-    address: '0x2DdE38f5b316De59Ac48EEC50f02F4222edA0B7f',
+    address: '0xc48022cC602f38d26Fc29A6148eB3605d0639aCB',
 }
 
 export const KAIAContract = {
     abi: MockERC20, // Using MockERC20 ABI for KAIA
-    address: '0xbE173555472C07530F6CC24e0FDe22a3fB0C06a1',
+    address: '0x442815Ec82C9879BDb13A4809c3Ae7C396D658f4',
 }
 
 export const RouterContract = {
@@ -60,7 +63,7 @@ export const LendingContract = {
 // Export all contracts as an object for easy access
 export const contracts = {
     YieldCircle: YieldCircleContract,
-    YieldCircleFactory: YieldCircleFactoryContract,
+    SimpleYieldCircleFactory: SimpleYieldCircleFactoryContract,
     KaiaYieldStrategyManager: KaiaYieldStrategyManagerContract,
     RandomGenerator: RandomGeneratorContract,
     USDT: USDTContract,
