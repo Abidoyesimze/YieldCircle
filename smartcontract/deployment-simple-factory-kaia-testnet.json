@@ -1,0 +1,14 @@
+{
+  "network": "kaia-testnet",
+  "chainId": 1001,
+  "deployer": "0xc3B0A029bC6C7DC2fddF9b9cC7Ece8476d91C61D",
+  "contracts": {
+    "mockUSDT": "0xFE2e76f1DcF3A706e34cCB6083125D4A4a59876E",
+    "mockUSDC": "0xc48022cC602f38d26Fc29A6148eB3605d0639aCB",
+    "mockKAIA": "0x442815Ec82C9879BDb13A4809c3Ae7C396D658f4",
+    "randomGenerator": "0xc9843a1aF776BEe8bDb55b94fD23bE2dbf457AbD",
+    "yieldManager": "0x789FF5585c2de03Be045d8866e69be0a3cf54744",
+    "simpleFactory": "0x7F37F6d0F333f64F4Dab8D8ded349f32D9e39ACa"
+  },
+  "timestamp": "2025-09-18T23:25:50.259Z"
+}

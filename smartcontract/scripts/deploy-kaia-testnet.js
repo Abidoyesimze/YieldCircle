@@ -1,192 +1,133 @@
-const { ethers } = require("hardhat");
+require("dotenv").config();
+const { ethers } = require("ethers");
 const { getNetworkConfig } = require("../config/testnet-addresses");
-
-/**
- * @title Kaia Kairos Testnet Deployment Script
- * @dev Deploys YieldCircle contracts to Kaia Kairos testnet with mock tokens
- */
+const fs = require("fs");
 
 async function main() {
     console.log("🚀 Deploying YieldCircle contracts to Kaia Kairos Testnet...");
-    
-    // Get network configuration
-    const config = getNetworkConfig('kaia-testnet');
-    console.log(`📡 Network: Kaia Kairos Testnet (Chain ID: ${config.chainId})`);
-    console.log(`🌐 Explorer: ${config.explorerUrl}`);
-    
-    const [deployer] = await ethers.getSigners();
-    console.log(`👤 Deploying from: ${deployer.address}`);
-    console.log(`💰 Deployer balance: ${ethers.utils.formatEther(await deployer.getBalance())} KAIA`);
-    
-    // Check if we have enough balance
-    const balance = await deployer.getBalance();
+
+    // Load Kaia testnet config
+    const config = getNetworkConfig("kaia-testnet");
+
+    // Connect to Kaia provider (ethers v5)
+    const provider = new ethers.providers.JsonRpcProvider(
+        process.env.KAIA_TESTNET_URL || config.rpcUrl
+    );
+
+    // Use your real private key
+    const deployer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+    console.log("👤 Deployer:", deployer.address);
+
+    const balance = await provider.getBalance(deployer.address);
+    console.log("💰 Balance:", ethers.utils.formatEther(balance), "KAIA");
+
     if (balance.lt(ethers.utils.parseEther("0.1"))) {
-        console.log("⚠️ Warning: Low balance. Get testnet KAIA from faucet:");
-        console.log("   Visit: https://kairos.kaiascan.io/faucet");
-        return;
+        console.error("⚠️ Not enough balance for deployment. Fund your wallet with testnet KAIA.");
+        process.exit(1);
     }
-    
-    console.log("\n📦 Step 1: Deploying Mock Tokens...");
-    
-    // Deploy Mock USDT
-    const MockUSDT = await ethers.getContractFactory("MockERC20");
-    const mockUSDT = await MockUSDT.deploy("Mock USDT", "USDT", 6);
-    await mockUSDT.deployed();
-    console.log(`✅ Mock USDT deployed to: ${mockUSDT.address}`);
-    
-    // Deploy Mock USDC
-    const mockUSDC = await MockUSDT.deploy("Mock USDC", "USDC", 6);
-    await mockUSDC.deployed();
-    console.log(`✅ Mock USDC deployed to: ${mockUSDC.address}`);
-    
-    // Deploy Mock KAIA (wrapped version)
-    const mockKAIA = await MockUSDT.deploy("Mock KAIA", "KAIA", 18);
-    await mockKAIA.deployed();
-    console.log(`✅ Mock KAIA deployed to: ${mockKAIA.address}`);
-    
-    console.log("\n📦 Step 2: Deploying Mock DeFi Protocols...");
-    
-    // Deploy Mock Router
-    const MockRouter = await ethers.getContractFactory("MockRouter");
-    const mockRouter = await MockRouter.deploy();
-    await mockRouter.deployed();
-    console.log(`✅ Mock Router deployed to: ${mockRouter.address}`);
-    
-    // Deploy Mock Lending
-    const MockLending = await ethers.getContractFactory("MockLending");
-    const mockLending = await MockLending.deploy(mockUSDT.address);
-    await mockLending.deployed();
-    console.log(`✅ Mock Lending deployed to: ${mockLending.address}`);
-    
-    // Deploy Mock Factory
-    const MockFactory = await ethers.getContractFactory("MockFactory");
-    const mockFactory = await MockFactory.deploy();
-    await mockFactory.deployed();
-    console.log(`✅ Mock Factory deployed to: ${mockFactory.address}`);
-    
-    console.log("\n📦 Step 3: Deploying Alternative Randomness...");
-    
-    // Deploy Alternative Random Generator (since VRF not available)
-    const AlternativeRandomGenerator = await ethers.getContractFactory("AlternativeRandomGenerator");
-    const randomGenerator = await AlternativeRandomGenerator.deploy();
-    await randomGenerator.deployed();
-    console.log(`✅ Alternative Random Generator deployed to: ${randomGenerator.address}`);
-    
-    console.log("\n📦 Step 4: Deploying Yield Strategy Manager...");
-    
-    // Deploy KaiaYieldStrategyManager with mock addresses
-    const KaiaYieldStrategyManager = await ethers.getContractFactory("KaiaYieldStrategyManager");
+
+    // ✅ Fixed overrides (EIP-1559 compatible)
+    const overrides = {
+        gasPrice: ethers.utils.parseUnits("25", "gwei"),
+        gasLimit: 8_500_000
+        // type: 0 // 👉 uncomment ONLY if RPC complains about "legacy tx required"
+    };
+
+    console.log("\n📦 Deploying Mock Tokens...");
+
+    const MockERC20Artifact = require("../artifacts/contracts/mocks/MockERC20.sol/MockERC20.json");
+
+    const MockUSDT = new ethers.ContractFactory(MockERC20Artifact.abi, MockERC20Artifact.bytecode, deployer);
+    const mockUSDT = await MockUSDT.deploy("Mock USDT", "USDT", 6, overrides);
+    await mockUSDT.deployTransaction.wait(1);
+    console.log("✅ Mock USDT deployed:", mockUSDT.address);
+
+    const mockUSDC = await MockUSDT.deploy("Mock USDC", "USDC", 6, overrides);
+    await mockUSDC.deployTransaction.wait(1);
+    console.log("✅ Mock USDC deployed:", mockUSDC.address);
+
+    const mockKAIA = await MockUSDT.deploy("Mock KAIA", "KAIA", 18, overrides);
+    await mockKAIA.deployTransaction.wait(1);
+    console.log("✅ Mock KAIA deployed:", mockKAIA.address);
+
+    console.log("\n📦 Deploying Random Generator...");
+
+    const RandomGeneratorArtifact = require("../artifacts/contracts/libraries/RandomGenerator.sol/RandomGenerator.json");
+    const RandomGenerator = new ethers.ContractFactory(RandomGeneratorArtifact.abi, RandomGeneratorArtifact.bytecode, deployer);
+    const randomGenerator = await RandomGenerator.deploy(
+        deployer.address, // dummy VRF coordinator
+        ethers.constants.HashZero, // dummy keyHash
+        1, // subscriptionId
+        200000, // callbackGasLimit
+        3, // requestConfirmations
+        overrides
+    );
+    await randomGenerator.deployTransaction.wait(1);
+    console.log("✅ RandomGenerator deployed:", randomGenerator.address);
+
+    console.log("\n📦 Deploying KaiaYieldStrategyManager...");
+
+    const KaiaYieldArtifact = require("../artifacts/contracts/KaiaYieldStrategyManager.sol/KaiaYieldStrategyManager.json");
+    const KaiaYieldStrategyManager = new ethers.ContractFactory(KaiaYieldArtifact.abi, KaiaYieldArtifact.bytecode, deployer);
     const yieldManager = await KaiaYieldStrategyManager.deploy(
-        mockUSDT.address,  // USDT
-        mockKAIA.address,  // KAIA
-        mockUSDC.address,  // USDC
-        mockRouter.address, // Router
-        mockLending.address // Lending
+        mockUSDT.address,
+        mockKAIA.address,
+        overrides
     );
-    await yieldManager.deployed();
-    console.log(`✅ KaiaYieldStrategyManager deployed to: ${yieldManager.address}`);
-    
-    console.log("\n📦 Step 5: Deploying Yield Circle Factory...");
-    
-    // Deploy YieldCircleFactory
-    const YieldCircleFactory = await ethers.getContractFactory("YieldCircleFactory");
+    await yieldManager.deployTransaction.wait(1);
+    console.log("✅ KaiaYieldStrategyManager deployed:", yieldManager.address);
+
+    console.log("\n📦 Deploying YieldCircleFactory...");
+
+    const YieldCircleFactoryArtifact = require("../artifacts/contracts/YieldCircleFactory.sol/YieldCircleFactory.json");
+    const YieldCircleFactory = new ethers.ContractFactory(YieldCircleFactoryArtifact.abi, YieldCircleFactoryArtifact.bytecode, deployer);
     const factory = await YieldCircleFactory.deploy(
-        mockUSDT.address,     // USDT
-        yieldManager.address,  // Yield Manager
-        randomGenerator.address // Random Generator
+        mockUSDT.address,
+        yieldManager.address,
+        randomGenerator.address,
+        overrides
     );
-    await factory.deployed();
-    console.log(`✅ YieldCircleFactory deployed to: ${factory.address}`);
-    
-    console.log("\n📦 Step 6: Setting up permissions...");
-    
-    // Grant roles
-    await yieldManager.grantRole(await yieldManager.STRATEGY_MANAGER_ROLE(), factory.address);
-    await yieldManager.grantRole(await yieldManager.CIRCLE_ROLE(), factory.address);
-    await randomGenerator.grantRole(await randomGenerator.OPERATOR_ROLE(), factory.address);
-    
-    console.log("✅ Permissions granted");
-    
-    console.log("\n📦 Step 7: Initializing strategies...");
-    
-    // Initialize strategies with mock data
-    await yieldManager.addStrategy(
-        "treasury",
-        "Treasury Reserve",
-        ethers.constants.AddressZero,
-        0, // 0% APY
-        1, // Risk score
-        10, // Liquidity score
-        0, // Min amount
-        1000000e6, // Max amount
-        0 // Strategy type
-    );
-    
-    await yieldManager.addStrategy(
-        "lending",
-        "USDT Lending",
-        mockLending.address,
-        600, // 6% APY
-        3, // Risk score
-        9, // Liquidity score
-        25e6, // Min amount
-        200000e6, // Max amount
-        1 // Strategy type
-    );
-    
-    console.log("✅ Strategies initialized");
-    
-    console.log("\n🎉 Deployment Complete!");
-    console.log("\n📋 Contract Addresses:");
-    console.log(`   Mock USDT: ${mockUSDT.address}`);
-    console.log(`   Mock USDC: ${mockUSDC.address}`);
-    console.log(`   Mock KAIA: ${mockKAIA.address}`);
-    console.log(`   Mock Router: ${mockRouter.address}`);
-    console.log(`   Mock Lending: ${mockLending.address}`);
-    console.log(`   Mock Factory: ${mockFactory.address}`);
-    console.log(`   Random Generator: ${randomGenerator.address}`);
-    console.log(`   Yield Manager: ${yieldManager.address}`);
-    console.log(`   Factory: ${factory.address}`);
-    
-    console.log("\n🔗 Explorer Links:");
-    console.log(`   Factory: ${config.explorerUrl}/address/${factory.address}`);
-    console.log(`   Yield Manager: ${config.explorerUrl}/address/${yieldManager.address}`);
-    
-    console.log("\n🚀 Next Steps:");
-    console.log("1. Test contract interactions");
-    console.log("2. Create a test circle");
-    console.log("3. Test yield strategies");
-    console.log("4. Test randomness generation");
-    
+    await factory.deployTransaction.wait(1);
+    console.log("✅ YieldCircleFactory deployed:", factory.address);
+
+    console.log("\n📦 Setting up roles...");
+    await (await yieldManager.grantRole(await yieldManager.CIRCLE_ROLE(), factory.address, overrides)).wait();
+    await (await yieldManager.grantRole(await yieldManager.STRATEGY_MANAGER_ROLE(), factory.address, overrides)).wait();
+    await (await randomGenerator.grantRole(await randomGenerator.OPERATOR_ROLE(), factory.address, overrides)).wait();
+    console.log("✅ Roles granted successfully");
+
+    console.log("\n⚙️ Loading default templates via helper...");
+    const FactoryTemplatesArtifact = require("../artifacts/contracts/FactoryTemplates.sol/FactoryTemplates.json");
+    const FactoryTemplates = new ethers.ContractFactory(FactoryTemplatesArtifact.abi, FactoryTemplatesArtifact.bytecode, deployer);
+    const templates = await FactoryTemplates.deploy(overrides);
+    await templates.deployTransaction.wait(1);
+    console.log("✅ FactoryTemplates deployed:", templates.address);
+    await (await templates.loadDefaults(factory.address, overrides)).wait();
+    console.log("✅ Templates loaded into factory");
+
     // Save deployment info
     const deploymentInfo = {
-        network: "kaia-kairos-testnet",
+        network: "kaia-testnet",
         chainId: config.chainId,
-        deployer: deployer.address,
+        deployer: await deployer.getAddress(),
         contracts: {
             mockUSDT: mockUSDT.address,
             mockUSDC: mockUSDC.address,
             mockKAIA: mockKAIA.address,
-            mockRouter: mockRouter.address,
-            mockLending: mockLending.address,
-            mockFactory: mockFactory.address,
             randomGenerator: randomGenerator.address,
             yieldManager: yieldManager.address,
-            factory: factory.address
+            factory: factory.address,
+            factoryTemplates: templates.address,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
     };
-    
-    require('fs').writeFileSync(
-        'deployment-kaia-testnet.json',
-        JSON.stringify(deploymentInfo, null, 2)
-    );
-    console.log("\n💾 Deployment info saved to: deployment-kaia-testnet.json");
+
+    fs.writeFileSync("deployment-kaia-testnet.json", JSON.stringify(deploymentInfo, null, 2));
+    console.log("\n💾 Deployment info saved to deployment-kaia-testnet.json");
+    console.log("\n🎉 Deployment Complete!");
 }
 
-main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error("❌ Deployment failed:", error);
-        process.exit(1);
-    });
+main().catch((error) => {
+    console.error("❌ Deployment failed:", error);
+    process.exit(1);
+});
