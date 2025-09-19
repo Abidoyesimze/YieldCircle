@@ -3,9 +3,24 @@ const { ethers } = require("hardhat");
 async function deployFactoryKaia() {
     console.log("🚀 Deploying YieldCircleFactory to Kaia Testnet...\n");
     
-    const [deployer] = await ethers.getSigners();
+    const signers = await ethers.getSigners();
+    if (signers.length === 0) {
+        throw new Error("No signers found. Check your network configuration and private key.");
+    }
+    
+    const deployer = signers[0];
     console.log(`Deployer: ${deployer.address}`);
-    console.log(`Balance: ${ethers.utils.formatEther(await deployer.getBalance())} KAIA\n`);
+    
+    try {
+        const balance = await deployer.getBalance();
+        console.log(`Balance: ${ethers.utils.formatEther(balance)} KAIA\n`);
+    } catch (error) {
+        console.log(`❌ Error getting balance: ${error.message}\n`);
+    }
+    
+    // Check network info
+    const network = await ethers.provider.getNetwork();
+    console.log(`Network: ${network.name} (Chain ID: ${network.chainId})\n`);
     
     try {
         // Use the existing deployed contract addresses from your frontend config
