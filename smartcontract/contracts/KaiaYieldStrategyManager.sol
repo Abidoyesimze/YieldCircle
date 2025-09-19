@@ -11,7 +11,6 @@ import "./mocks/MockLending.sol";
 import "./mocks/MockRouter.sol";
 import "./mocks/MockKaiaStaking.sol";
 
-
 /**
  * @title Kaia Yield Strategy Manager - Integrated with Mock Protocols
  * @dev Manages DeFi yield strategies with working mock protocols for testnet

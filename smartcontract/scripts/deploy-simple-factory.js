@@ -4,7 +4,7 @@ const { getNetworkConfig } = require("../config/testnet-addresses");
 const fs = require("fs");
 
 async function main() {
-    console.log("🚀 Deploying Core YieldCircle contracts to Kaia Kairos Testnet...");
+    console.log("🚀 Deploying Simple YieldCircle Factory to Kaia Kairos Testnet...");
 
     // Load Kaia testnet config
     const config = getNetworkConfig("kaia-testnet");
@@ -35,7 +35,7 @@ async function main() {
 
     console.log("\n📦 Deploying Mock Tokens...");
 
-    const MockERC20Artifact = require("../artifacts/contracts/mocks/MockERC20.sol/MockERC20.json");
+    const MockERC20Artifact = require("../artifacts/contracts/mocks/mockcontract.sol/MockERC20.json");
 
     const MockUSDT = new ethers.ContractFactory(MockERC20Artifact.abi, MockERC20Artifact.bytecode, deployer);
     const mockUSDT = await MockUSDT.deploy("Mock USDT", "USDT", 6, overrides);
@@ -77,37 +77,23 @@ async function main() {
     await yieldManager.deployTransaction.wait(1);
     console.log("✅ KaiaYieldStrategyManager deployed:", yieldManager.address);
 
-    console.log("\n📦 Deploying YieldCircle (standalone)...");
+    console.log("\n📦 Deploying SimpleYieldCircleFactory...");
 
-    const YieldCircleArtifact = require("../artifacts/contracts/YieldCircle.sol/YieldCircle.json");
-    const YieldCircle = new ethers.ContractFactory(YieldCircleArtifact.abi, YieldCircleArtifact.bytecode, deployer);
-
-    // Create a simple test circle with 3 members
-    const testMembers = [
-        deployer.address,
-        "0x1234567890123456789012345678901234567890", // dummy address
-        "0x0987654321098765432109876543210987654321"  // dummy address
-    ];
-
-    const testCircle = await YieldCircle.deploy(
+    const SimpleFactoryArtifact = require("../artifacts/contracts/SimpleYieldCircleFactory.sol/SimpleYieldCircleFactory.json");
+    const SimpleYieldCircleFactory = new ethers.ContractFactory(SimpleFactoryArtifact.abi, SimpleFactoryArtifact.bytecode, deployer);
+    const factory = await SimpleYieldCircleFactory.deploy(
         mockUSDT.address,
         yieldManager.address,
         randomGenerator.address,
-        testMembers,
-        ethers.utils.parseUnits("100", 6), // 100 USDT
-        7 * 24 * 60 * 60, // 7 days
-        "Test Circle",
-        deployer.address,
-        1, // dummy requestId
         overrides
     );
-    await testCircle.deployTransaction.wait(1);
-    console.log("✅ YieldCircle deployed:", testCircle.address);
+    await factory.deployTransaction.wait(1);
+    console.log("✅ SimpleYieldCircleFactory deployed:", factory.address);
 
     console.log("\n📦 Setting up roles...");
-    await (await yieldManager.grantRole(await yieldManager.CIRCLE_ROLE(), testCircle.address, overrides)).wait();
-    await (await yieldManager.grantRole(await yieldManager.STRATEGY_MANAGER_ROLE(), deployer.address, overrides)).wait();
-    await (await randomGenerator.grantRole(await randomGenerator.OPERATOR_ROLE(), deployer.address, overrides)).wait();
+    await (await yieldManager.grantRole(await yieldManager.CIRCLE_ROLE(), factory.address, overrides)).wait();
+    await (await yieldManager.grantRole(await yieldManager.STRATEGY_MANAGER_ROLE(), factory.address, overrides)).wait();
+    await (await randomGenerator.grantRole(await randomGenerator.OPERATOR_ROLE(), factory.address, overrides)).wait();
     console.log("✅ Roles granted successfully");
 
     // Save deployment info
@@ -121,22 +107,22 @@ async function main() {
             mockKAIA: mockKAIA.address,
             randomGenerator: randomGenerator.address,
             yieldManager: yieldManager.address,
-            yieldCircle: testCircle.address,
+            simpleFactory: factory.address,
         },
         timestamp: new Date().toISOString(),
     };
 
-    fs.writeFileSync("deployment-core-kaia-testnet.json", JSON.stringify(deploymentInfo, null, 2));
-    console.log("\n💾 Deployment info saved to deployment-core-kaia-testnet.json");
+    fs.writeFileSync("deployment-simple-factory-kaia-testnet.json", JSON.stringify(deploymentInfo, null, 2));
+    console.log("\n💾 Deployment info saved to deployment-simple-factory-kaia-testnet.json");
 
-    console.log("\n🎉 Core Contracts Deployment Complete!");
+    console.log("\n🎉 Simple Factory Deployment Complete!");
     console.log("\n📋 Contract Addresses:");
     console.log("   Mock USDT:", mockUSDT.address);
     console.log("   Mock USDC:", mockUSDC.address);
     console.log("   Mock KAIA:", mockKAIA.address);
     console.log("   RandomGenerator:", randomGenerator.address);
     console.log("   KaiaYieldStrategyManager:", yieldManager.address);
-    console.log("   YieldCircle (Test):", testCircle.address);
+    console.log("   SimpleYieldCircleFactory:", factory.address);
 }
 
 main().catch((error) => {

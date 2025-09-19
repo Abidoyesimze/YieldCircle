@@ -10,11 +10,11 @@ import "./YieldCircle.sol";
 import "./libraries/RandomGenerator.sol";
 
 /**
- * @title Yield Circle Factory
- * @dev Factory contract for creating yield circles with enhanced security
+ * @title Simple Yield Circle Factory
+ * @dev Simplified factory contract for creating yield circles
  * @author Yield Circle Team
  */
-contract YieldCircleFactory is AccessControl, Pausable {
+contract SimpleYieldCircleFactory is AccessControl, Pausable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
@@ -26,22 +26,6 @@ contract YieldCircleFactory is AccessControl, Pausable {
     mapping(address => address[]) public userCircles;
     mapping(address => uint256) public circleCount;
     mapping(address => bool) public circleExists;
-
-    // Circle templates with enhanced validation
-    struct CircleTemplate {
-        string name;
-        uint256 minMembers;
-        uint256 maxMembers;
-        uint256 minContribution;
-        uint256 maxContribution;
-        uint256[] allowedDurations; // in seconds
-        bool isActive;
-        uint256 maxTotalValue; // Maximum total value for this template
-        uint256 gasEstimate; // Estimated gas cost for operations
-    }
-
-    mapping(string => CircleTemplate) public templates;
-    string[] public templateNames;
 
     // Security controls
     uint256 public maxCirclesPerUser = 10;
@@ -60,22 +44,14 @@ contract YieldCircleFactory is AccessControl, Pausable {
         uint256 requestId
     );
 
-    event TemplateAdded(
-        string indexed templateName,
-        uint256 minMembers,
-        uint256 maxMembers
-    );
-    event TemplateUpdated(string indexed templateName, bool isActive);
     event SecuritySettingsUpdated(
         uint256 maxCirclesPerUser,
         uint256 maxTotalCircles
     );
 
     // Errors
-    error TemplateInactive();
     error InvalidMemberCount();
     error InvalidContributionAmount();
-    error InvalidDuration();
     error CreatorNotInMembers();
     error DuplicateMember();
     error TooManyCircles();
@@ -102,92 +78,12 @@ contract YieldCircleFactory is AccessControl, Pausable {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(OPERATOR_ROLE, msg.sender);
-
-        _initializeTemplates();
-    }
-
-    function _initializeTemplates() internal {
-        // Family template
-        uint256[] memory familyDurations = new uint256[](2);
-        familyDurations[0] = 7 days;
-        familyDurations[1] = 30 days;
-        _addTemplate(
-            "family",
-            "Family Savings",
-            3,
-            8,
-            25e6, // $25
-            1000e6, // $1000
-            familyDurations,
-            8000e6, // $8000 max total value
-            200000 // 200k gas estimate
-        );
-
-        // Friends template
-        uint256[] memory friendsDurations = new uint256[](1);
-        friendsDurations[0] = 30 days;
-        _addTemplate(
-            "friends",
-            "Friends Group",
-            4,
-            12,
-            50e6, // $50
-            500e6, // $500
-            friendsDurations,
-            6000e6, // $6000 max total value
-            250000 // 250k gas estimate
-        );
-
-        // Community template
-        uint256[] memory communityDurations = new uint256[](3);
-        communityDurations[0] = 30 days;
-        communityDurations[1] = 60 days;
-        communityDurations[2] = 90 days;
-        _addTemplate(
-            "community",
-            "Community Pool",
-            8,
-            20,
-            100e6, // $100
-            2000e6, // $2000
-            communityDurations,
-            40000e6, // $40000 max total value
-            300000 // 300k gas estimate
-        );
-    }
-
-    function _addTemplate(
-        string memory key,
-        string memory name,
-        uint256 minMembers,
-        uint256 maxMembers,
-        uint256 minContribution,
-        uint256 maxContribution,
-        uint256[] memory allowedDurations,
-        uint256 maxTotalValue,
-        uint256 gasEstimate
-    ) internal {
-        templates[key] = CircleTemplate({
-            name: name,
-            minMembers: minMembers,
-            maxMembers: maxMembers,
-            minContribution: minContribution,
-            maxContribution: maxContribution,
-            allowedDurations: allowedDurations,
-            isActive: true,
-            maxTotalValue: maxTotalValue,
-            gasEstimate: gasEstimate
-        });
-
-        templateNames.push(key);
-        emit TemplateAdded(key, minMembers, maxMembers);
     }
 
     /**
-     * @dev Create a new yield circle with enhanced validation
+     * @dev Create a new yield circle with basic validation
      */
     function createCircle(
-        string memory templateName,
         address[] memory members,
         uint256 contributionAmount,
         uint256 cycleDuration,
@@ -197,36 +93,19 @@ contract YieldCircleFactory is AccessControl, Pausable {
         whenNotPaused
         returns (address circleAddress, uint256 requestId)
     {
-        // Validate template
-        CircleTemplate memory template = templates[templateName];
-        if (!template.isActive) revert TemplateInactive();
-
-        // Validate member count
-        if (
-            members.length < template.minMembers ||
-            members.length > template.maxMembers
-        ) {
-            revert InvalidMemberCount();
-        }
-
-        // Validate contribution amount
-        if (
-            contributionAmount < template.minContribution ||
-            contributionAmount > template.maxContribution
-        ) {
-            revert InvalidContributionAmount();
-        }
-
-        // Validate total value
-        uint256 totalValue = contributionAmount * members.length;
-        if (totalValue > template.maxTotalValue) {
-            revert InvalidContributionAmount();
-        }
-
-        // Validate duration
-        if (!_isValidDuration(templateName, cycleDuration)) {
-            revert InvalidDuration();
-        }
+        // Basic validation
+        require(
+            members.length >= 2 && members.length <= 20,
+            "Invalid member count"
+        );
+        require(
+            contributionAmount >= 1e6 && contributionAmount <= 10000e6,
+            "Invalid contribution amount"
+        );
+        require(
+            cycleDuration >= 1 days && cycleDuration <= 365 days,
+            "Invalid duration"
+        );
 
         // Validate creator is in members list and no duplicates
         bool creatorIncluded = false;
@@ -313,18 +192,6 @@ contract YieldCircleFactory is AccessControl, Pausable {
         YieldCircle(circleAddress).initializeWithPositions(positions);
     }
 
-    function _isValidDuration(
-        string memory templateName,
-        uint256 duration
-    ) internal view returns (bool) {
-        uint256[] memory allowedDurations = templates[templateName]
-            .allowedDurations;
-        for (uint i = 0; i < allowedDurations.length; i++) {
-            if (allowedDurations[i] == duration) return true;
-        }
-        return false;
-    }
-
     /**
      * @dev Set yield manager address
      */
@@ -343,62 +210,6 @@ contract YieldCircleFactory is AccessControl, Pausable {
     ) external onlyRole(ADMIN_ROLE) {
         require(_randomGenerator != address(0), "Invalid address");
         randomGenerator = RandomGenerator(_randomGenerator);
-    }
-
-    /**
-     * @dev Add new template
-     */
-    function addTemplate(
-        string memory key,
-        string memory name,
-        uint256 minMembers,
-        uint256 maxMembers,
-        uint256 minContribution,
-        uint256 maxContribution,
-        uint256[] memory allowedDurations,
-        uint256 maxTotalValue,
-        uint256 gasEstimate
-    ) external onlyRole(ADMIN_ROLE) {
-        require(
-            bytes(templates[key].name).length == 0,
-            "Template already exists"
-        );
-        require(
-            minMembers > 0 && maxMembers >= minMembers,
-            "Invalid member range"
-        );
-        require(
-            minContribution > 0 && maxContribution >= minContribution,
-            "Invalid contribution range"
-        );
-        require(allowedDurations.length > 0, "No durations provided");
-
-        _addTemplate(
-            key,
-            name,
-            minMembers,
-            maxMembers,
-            minContribution,
-            maxContribution,
-            allowedDurations,
-            maxTotalValue,
-            gasEstimate
-        );
-    }
-
-    /**
-     * @dev Update template status
-     */
-    function updateTemplateStatus(
-        string memory templateName,
-        bool isActive
-    ) external onlyRole(ADMIN_ROLE) {
-        require(
-            bytes(templates[templateName].name).length > 0,
-            "Template not found"
-        );
-        templates[templateName].isActive = isActive;
-        emit TemplateUpdated(templateName, isActive);
     }
 
     /**
@@ -438,39 +249,6 @@ contract YieldCircleFactory is AccessControl, Pausable {
         address user
     ) external view returns (address[] memory) {
         return userCircles[user];
-    }
-
-    function getTemplateInfo(
-        string memory templateName
-    )
-        external
-        view
-        returns (
-            uint256 minMembers,
-            uint256 maxMembers,
-            uint256 minContribution,
-            uint256 maxContribution,
-            uint256[] memory allowedDurations,
-            bool isActive,
-            uint256 maxTotalValue,
-            uint256 gasEstimate
-        )
-    {
-        CircleTemplate memory template = templates[templateName];
-        return (
-            template.minMembers,
-            template.maxMembers,
-            template.minContribution,
-            template.maxContribution,
-            template.allowedDurations,
-            template.isActive,
-            template.maxTotalValue,
-            template.gasEstimate
-        );
-    }
-
-    function getTemplateNames() external view returns (string[] memory) {
-        return templateNames;
     }
 
     function getCircleCreationInfo(
