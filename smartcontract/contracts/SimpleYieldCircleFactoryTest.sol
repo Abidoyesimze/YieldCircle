@@ -158,6 +158,9 @@ contract SimpleYieldCircleFactoryTest is AccessControl, Pausable {
         allCircles.push(circleAddress);
         circleExists[circleAddress] = true;
 
+        // Initialize circle with test positions (as the creator)
+        newCircle.initializeWithPositions(positions);
+
         for (uint i = 0; i < members.length; i++) {
             userCircles[members[i]].push(circleAddress);
         }
@@ -264,5 +267,40 @@ contract SimpleYieldCircleFactoryTest is AccessControl, Pausable {
             allCircles.length < maxTotalCircles &&
             block.timestamp >=
             lastCircleCreation[user] + minCircleCreationDelay);
+    }
+
+    /**
+     * @dev Initialize circle with test positions (for fixing existing circles)
+     */
+    function initializeCircleWithTestPositions(
+        address payable circleAddress
+    ) external onlyRole(OPERATOR_ROLE) {
+        require(circleExists[circleAddress], "Circle does not exist");
+
+        YieldCircle circle = YieldCircle(circleAddress);
+        
+        // Get member count from the circle
+        uint256 memberCount = 0;
+        try circle.memberList(0) returns (address) {
+            // Count members by checking each index until we get an error
+            for (uint256 i = 0; i < 50; i++) {
+                try circle.memberList(i) returns (address member) {
+                    if (member != address(0)) {
+                        memberCount++;
+                    } else {
+                        break;
+                    }
+                } catch {
+                    break;
+                }
+            }
+        } catch {
+            revert("Cannot determine member count");
+        }
+
+        require(memberCount > 0, "No members found");
+
+        uint256[] memory positions = randomGenerator.generateTestPositions(memberCount);
+        circle.initializeWithPositions(positions);
     }
 }

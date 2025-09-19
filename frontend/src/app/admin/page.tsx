@@ -41,9 +41,32 @@ export default function SchoolFeesDashboard() {
         );
 
         // Get all circles created by this user
-        const userCircles = await factoryContract.getUserCircles(address);
+        console.log("Fetching circles for user:", address);
+        console.log("Factory contract address:", contracts.SimpleYieldCircleFactory.address);
         
-        // Fetch details for each circle
+        // Check total circles first
+        const totalCircles = await factoryContract.getCircleCount();
+        console.log("Total circles in factory:", totalCircles.toString());
+        
+        // Check user's circle creation limits
+        const [userCircleCount, lastCreationTime, timeUntilNextAllowed] = await factoryContract.getCircleCreationInfo(address);
+        const canCreateCircle = await factoryContract.canCreateCircle(address);
+        const maxCirclesPerUser = await factoryContract.maxCirclesPerUser();
+        const minCircleCreationDelay = await factoryContract.minCircleCreationDelay();
+        
+        console.log("User circle creation info:", {
+          userCircleCount: userCircleCount.toString(),
+          maxCirclesPerUser: maxCirclesPerUser.toString(),
+          lastCreationTime: lastCreationTime.toString(),
+          timeUntilNextAllowed: timeUntilNextAllowed.toString(),
+          minCircleCreationDelay: minCircleCreationDelay.toString(),
+          canCreateCircle: canCreateCircle
+        });
+        
+        const userCircles = await factoryContract.getUserCircles(address);
+        console.log("User circles found:", userCircles);
+        
+        // Fetch details for each circle and filter for circles created by this user
         const circleDetails = await Promise.all(
           userCircles.map(async (circleAddress: string) => {
             try {
@@ -53,28 +76,34 @@ export default function SchoolFeesDashboard() {
                 signer
               );
 
-              // Get basic circle info
-              const circleInfo = await circleContract.getCircleInfo();
-              const memberCount = await circleContract.getMemberCount();
-              const poolBalance = await circleContract.getPoolBalance();
-              const totalYieldEarned = await circleContract.getTotalYieldEarned();
-              const phase = await circleContract.getCurrentPhase();
+              // Get basic circle info from the public circle variable
+              const circleInfo = await circleContract.circle();
+              
+              // Only include circles created by this user (admin page shows created circles, not joined circles)
+              if (circleInfo.creator.toLowerCase() !== address.toLowerCase()) {
+                return null; // Skip circles not created by this user
+              }
+              
+              const memberCount = await circleContract.getMembers().then(([addresses]) => addresses.length);
+              const poolBalance = circleInfo.poolBalance;
+              const totalYieldEarned = circleInfo.totalYieldEarned;
+              const phase = circleInfo.phase;
 
               // Get members data
               const [memberAddresses, memberNames] = await circleContract.getMembers();
               const members = await Promise.all(
                 memberAddresses.map(async (memberAddress: string, index: number) => {
                   try {
-                    const memberInfo = await circleContract.getMemberInfo(memberAddress);
+                    const [name, payoutPosition, hasContributed, hasReceivedPayout, totalContributions, isActive] = await circleContract.getMemberInfo(memberAddress);
                     return {
                       address: memberAddress,
-                      name: memberNames[index] || `Member ${index + 1}`,
-                      payoutPosition: Number(memberInfo.payoutPosition),
-                      hasContributed: memberInfo.hasContributed,
-                      hasReceivedPayout: memberInfo.hasReceivedPayout,
-                      totalContributions: ethers.formatUnits(memberInfo.totalContributions, 6),
-                      joinedTimestamp: new Date(Number(memberInfo.joinedTimestamp) * 1000),
-                      isActive: memberInfo.isActive
+                      name: name || memberNames[index] || `Member ${index + 1}`,
+                      payoutPosition: Number(payoutPosition),
+                      hasContributed: hasContributed,
+                      hasReceivedPayout: hasReceivedPayout,
+                      totalContributions: ethers.formatUnits(totalContributions, 6),
+                      joinedTimestamp: new Date(), // Use current date as fallback since joinedTimestamp is not returned
+                      isActive: isActive
                     };
                   } catch (error) {
                     console.error(`Error fetching member ${memberAddress}:`, error);
@@ -118,7 +147,7 @@ export default function SchoolFeesDashboard() {
                 totalYieldEarned: ethers.formatUnits(totalYieldEarned, 6),
                 phase: phase,
                 creator: circleInfo.creator,
-                createdAt: new Date(Number(circleInfo.createdAt) * 1000).toLocaleDateString(),
+                createdAt: new Date().toLocaleDateString(), // Use current date as fallback
                 members: members,
                 activity: activity
               };
@@ -130,7 +159,10 @@ export default function SchoolFeesDashboard() {
         );
 
         // Filter out null results and set circles
-        setCircles(circleDetails.filter(circle => circle !== null));
+        // Filter out null values (circles not created by this user)
+        const createdCircles = circleDetails.filter(circle => circle !== null);
+        console.log("Created circles:", createdCircles);
+        setCircles(createdCircles);
         setLoading(false);
       } catch (error) {
         console.error('Error fetching user circles:', error);
@@ -166,6 +198,33 @@ export default function SchoolFeesDashboard() {
     }));
   };
 
+  // Helper function to generate invitation link
+  const generateInvitationLink = (circleAddress: string, circleName: string, memberCount: number, contributionAmount: string, cycleDuration: number) => {
+    const baseUrl = window.location.origin;
+    const invitationLink = `${baseUrl}/join-circle?circle=${circleAddress}&name=${encodeURIComponent(circleName)}&members=${memberCount}&amount=${contributionAmount}&duration=${cycleDuration}`;
+    return invitationLink;
+  };
+
+  // Helper function to copy invitation link to clipboard
+  const copyInvitationLink = async (link: string, buttonElement?: HTMLElement) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      // Show a subtle success indicator instead of alert
+      if (buttonElement) {
+        const originalText = buttonElement.textContent;
+        buttonElement.textContent = 'Copied!';
+        buttonElement.classList.add('bg-green-400');
+        setTimeout(() => {
+          buttonElement.textContent = originalText;
+          buttonElement.classList.remove('bg-green-400');
+        }, 1500);
+      }
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+      alert('Failed to copy link. Please copy manually.');
+    }
+  };
+
   const generateCalendar = () => {
     const year = 2024;
     const month = 8; // September (0-indexed)
@@ -183,14 +242,15 @@ export default function SchoolFeesDashboard() {
 
   const { dayNames, days } = generateCalendar();
 
-  // Use real data if available, otherwise show empty state
-  const currentCircle = circles.length > 0 ? circles[0] : null;
-  const circleName = currentCircle ? currentCircle.name : 'No Circles Created';
-  const contributionAmount = currentCircle ? `${currentCircle.contributionAmount} USDT` : '0 USDT';
-  const poolBalance = currentCircle ? currentCircle.poolBalance : '0.00';
-  const totalYield = currentCircle ? currentCircle.totalYieldEarned : '0.00';
-  const members = currentCircle ? currentCircle.members : [];
-  const activityItems = currentCircle ? formatActivityItems(currentCircle.activity) : [];
+  // Calculate totals across all circles
+  const totalCircles = circles.length;
+  const totalPoolBalance = circles.reduce((sum, circle) => sum + parseFloat(circle.poolBalance), 0);
+  const totalYieldEarned = circles.reduce((sum, circle) => sum + parseFloat(circle.totalYieldEarned), 0);
+  const totalMembers = circles.reduce((sum, circle) => sum + circle.memberCount, 0);
+
+  // Selected circle state
+  const [selectedCircleIndex, setSelectedCircleIndex] = useState(0);
+  const selectedCircle = circles.length > 0 ? circles[selectedCircleIndex] : null;
 
   if (!isConnected) {
     return (
@@ -213,8 +273,21 @@ export default function SchoolFeesDashboard() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading your circles...</p>
+          <div className="relative">
+            {/* Outer spinning ring */}
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-700 mx-auto mb-4"></div>
+            {/* Inner spinning ring */}
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-transparent border-t-teal-400 border-r-purple-400 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+            {/* Center dot */}
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-teal-400 rounded-full"></div>
+          </div>
+          <h2 className="text-xl font-semibold mb-2 text-teal-400">Loading Your Circles</h2>
+          <p className="text-gray-400 mb-4">Fetching data from the blockchain...</p>
+          <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+            <div className="animate-pulse">●</div>
+            <div className="animate-pulse" style={{ animationDelay: '0.2s' }}>●</div>
+            <div className="animate-pulse" style={{ animationDelay: '0.4s' }}>●</div>
+          </div>
         </div>
       </div>
     );
@@ -300,307 +373,383 @@ export default function SchoolFeesDashboard() {
         </div>
       </div>
 
-      {/* Circle Header */}
+
+      {/* Circle Selector Header */}
       <div className="mb-6">
-        <h2 className="text-xl font-bold mb-1">{circleName}</h2>
-        <p className="text-gray-400 text-sm">Monthly - {contributionAmount} per member</p>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-bold mb-1">My Created Circles ({totalCircles})</h2>
+            <p className="text-gray-400 text-sm">Total Pool: ${totalPoolBalance.toFixed(2)} USDT | Total Yield: ${totalYieldEarned.toFixed(2)} | Total Members: {totalMembers}</p>
+          </div>
+          {circles.length > 1 && (
+            <div className="flex items-center space-x-3">
+              <label className="text-sm text-gray-400">Select Circle:</label>
+              <select
+                value={selectedCircleIndex}
+                onChange={(e) => setSelectedCircleIndex(Number(e.target.value))}
+                className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-teal-400 focus:outline-none"
+              >
+                {circles.map((circle, index) => (
+                  <option key={index} value={index}>
+                    {circle.name} - ${circle.poolBalance} USDT
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Main Content - 3 Column Layout */}
-      <div className="grid grid-cols-12 gap-6 mb-6">
-        
-        {/* Left Column - Balance Cards */}
-        <div className="col-span-3 space-y-4">
-          {/* USDT Balance */}
-          <div className="relative">
-            <div className="absolute inset-0 rounded-lg" style={{
-              background: 'linear-gradient(90deg, #DA35E9 0%, #7AC2BC 50%, #1AF29B 100%)',
-              padding: '1px'
-            }}>
-              <div className="bg-gray-900/90 backdrop-blur rounded-lg p-4">
-                <p className="text-teal-400 text-xs mb-2">USDT Balance</p>
-                <p className="text-2xl font-bold">${poolBalance}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Circle Balance */}
-          <div className="relative">
-            <div className="absolute inset-0 rounded-lg" style={{
-              background: 'linear-gradient(90deg, #DA35E9 0%, #7AC2BC 50%, #1AF29B 100%)',
-              padding: '1px'
-            }}>
-              <div className="bg-gray-900/90 backdrop-blur rounded-lg p-4">
-                <p className="text-purple-400 text-xs mb-2">Circle Balance</p>
-                <p className="text-2xl font-bold">${poolBalance}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Middle Column - Stats Cards */}
-        <div className="col-span-3 space-y-4">
-          {/* Reward */}
-          <div className="bgblack-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-gray-400 text-xs">Reward</p>
-                <p className="text-lg font-semibold">{totalYield}%</p>
-              </div>
-              <div className="text-teal-400 text-xl">✦</div>
-            </div>
-          </div>
-
-          {/* Next Payout */}
-          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-gray-400 text-xs">Next Payout</p>
-                <p className="text-lg font-semibold">Sept. 24</p>
-              </div>
-              <div className="text-blue-400 text-xl">∞</div>
-            </div>
-          </div>
-
-          {/* Exit APY */}
-          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-gray-400 text-xs">Exit APY</p>
-                <p className="text-lg font-semibold">0%</p>
-              </div>
-              <div className="text-green-400 text-xl">$</div>
-            </div>
-          </div>
-
-          {/* Risk Level */}
-          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-gray-400 text-xs">Risk Level</p>
-                <p className="text-lg font-semibold">Low</p>
-              </div>
-              <div className="text-green-400 text-xl">📈</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Calendar */}
-        <div className="col-span-6">
-          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6 h-full">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-semibold">September</h3>
-              <div className="text-sm text-gray-400">
-                {currentTime.toLocaleTimeString('en-US', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                })}
-              </div>
-            </div>
-            {/* Calendar Header */}
-            <div className="grid grid-cols-7 gap-2 mb-4">
-              {dayNames.map(day => (
-                <div key={day} className="text-center text-sm font-medium text-gray-400 p-2">
-                  {day}
-                </div>
-              ))}
+      {/* Circle Header */}
+      {selectedCircle && (
+        <div className="mb-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-xl font-bold mb-1">{selectedCircle.name}</h2>
+              <p className="text-gray-400 text-sm">Monthly - {selectedCircle.contributionAmount} USDT per member</p>
             </div>
             
-            {/* Calendar Days */}
-            <div className="grid grid-cols-7 gap-2">
-              {/* Empty cells for days before month starts */}
-              {[...Array(3)].map((_, i) => (
-                <div key={`empty-${i}`} className="p-3"></div>
-              ))}
-              
-              {days.map(day => (
+            {/* Invitation Link for Selected Circle */}
+            <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4 min-w-96">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-teal-400">Invitation Link</h3>
                 <button
-                  key={day}
-                  onClick={() => setSelectedDate(day)}
-                  className={`p-3 text-sm rounded-lg text-center transition-all font-medium ${
-                    day === 7
-                      ? 'bg-purple-600 text-white shadow-lg' 
-                      : day === 24
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
-                  }`}
+                  onClick={(e) => {
+                    const invitationLink = generateInvitationLink(
+                      selectedCircle.address,
+                      selectedCircle.name,
+                      selectedCircle.memberCount,
+                      selectedCircle.contributionAmount,
+                      selectedCircle.cycleDuration
+                    );
+                    copyInvitationLink(invitationLink, e.currentTarget);
+                  }}
+                  className="flex items-center space-x-2 bg-teal-400 text-black px-3 py-2 rounded-lg hover:bg-teal-300 transition-colors text-sm font-medium"
                 >
-                  {day}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Copy</span>
                 </button>
-              ))}
+              </div>
+              <div className="text-xs text-gray-400 space-y-1">
+                <p>Members: {selectedCircle.memberCount} | Contribution: {selectedCircle.contributionAmount} USDT | Duration: {selectedCircle.cycleDuration} days</p>
+                <p className="text-gray-500 break-all">
+                  {generateInvitationLink(
+                    selectedCircle.address,
+                    selectedCircle.name,
+                    selectedCircle.memberCount,
+                    selectedCircle.contributionAmount,
+                    selectedCircle.cycleDuration
+                  )}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Main Content - Original Designer Layout */}
+      {selectedCircle && (
+        <div className="grid grid-cols-12 gap-6 mb-6">
+          
+          {/* Left Column - Balance Cards */}
+          <div className="col-span-3 space-y-4">
+            {/* USDT Balance */}
+            <div className="relative">
+              <div className="absolute inset-0 rounded-lg" style={{
+                background: 'linear-gradient(90deg, #DA35E9 0%, #7AC2BC 50%, #1AF29B 100%)',
+                padding: '1px'
+              }}>
+                <div className="bg-gray-900/90 backdrop-blur rounded-lg p-4">
+                  <p className="text-teal-400 text-xs mb-2">USDT Balance</p>
+                  <p className="text-2xl font-bold">${selectedCircle.poolBalance}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Circle Balance */}
+            <div className="relative">
+              <div className="absolute inset-0 rounded-lg" style={{
+                background: 'linear-gradient(90deg, #DA35E9 0%, #7AC2BC 50%, #1AF29B 100%)',
+                padding: '1px'
+              }}>
+                <div className="bg-gray-900/90 backdrop-blur rounded-lg p-4">
+                  <p className="text-purple-400 text-xs mb-2">Circle Balance</p>
+                  <p className="text-2xl font-bold">${selectedCircle.poolBalance}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Middle Column - Stats Cards */}
+          <div className="col-span-3 space-y-4">
+            {/* Reward */}
+            <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-gray-400 text-xs">Reward</p>
+                  <p className="text-lg font-semibold">{selectedCircle.totalYieldEarned}%</p>
+                </div>
+                <div className="text-teal-400 text-xl">✦</div>
+              </div>
+            </div>
+
+            {/* Next Payout */}
+            <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-gray-400 text-xs">Next Payout</p>
+                  <p className="text-lg font-semibold">Sept. 24</p>
+                </div>
+                <div className="text-blue-400 text-xl">∞</div>
+              </div>
+            </div>
+
+            {/* Exit APY */}
+            <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-gray-400 text-xs">Exit APY</p>
+                  <p className="text-lg font-semibold">0%</p>
+                </div>
+                <div className="text-green-400 text-xl">$</div>
+              </div>
+            </div>
+
+            {/* Risk Level */}
+            <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-gray-400 text-xs">Risk Level</p>
+                  <p className="text-lg font-semibold">Low</p>
+                </div>
+                <div className="text-green-400 text-xl">📈</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Calendar */}
+          <div className="col-span-6">
+            <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6 h-full">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-semibold">September</h3>
+                <div className="text-sm text-gray-400">
+                  {currentTime.toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                  })}
+                </div>
+              </div>
+              {/* Calendar Header */}
+              <div className="grid grid-cols-7 gap-2 mb-4">
+                {dayNames.map(day => (
+                  <div key={day} className="text-center text-sm font-medium text-gray-400 p-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Calendar Days */}
+              <div className="grid grid-cols-7 gap-2">
+                {/* Empty cells for days before month starts */}
+                {[...Array(3)].map((_, i) => (
+                  <div key={`empty-${i}`} className="p-3"></div>
+                ))}
+                
+                {days.map(day => (
+                  <button
+                    key={day}
+                    onClick={() => setSelectedDate(day)}
+                    className={`p-3 text-sm rounded-lg text-center transition-all font-medium ${
+                      day === 7
+                        ? 'bg-purple-600 text-white shadow-lg' 
+                        : day === 24
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:bg-gray-800/50 hover:text-white'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row: Three Cards */}
-      <div className="grid grid-cols-3 gap-6">
-        {/* Members Card */}
-        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-6">Members ({members.length})</h3>
-          <div className="space-y-5">
-            {members.length > 0 ? (
-              members.map((member: any, index: number) => {
-                const memberStatus = getMemberStatus(member);
-                return (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className={`w-3 h-3 rounded-full ${memberStatus.color}`}></div>
-                        <span className="text-sm font-medium">{member.name}</span>
+      {selectedCircle && (
+        <div className="grid grid-cols-3 gap-6">
+          {/* Members Card */}
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-6">Members ({selectedCircle.members.length})</h3>
+            <div className="space-y-5">
+              {selectedCircle.members.length > 0 ? (
+                selectedCircle.members.map((member: any, index: number) => {
+                  const memberStatus = getMemberStatus(member);
+                  return (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-3 h-3 rounded-full ${memberStatus.color}`}></div>
+                          <span className="text-sm font-medium">{member.name}</span>
+                        </div>
+                        <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
+                          {memberStatus.status}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded">
-                        {memberStatus.status}
-                      </span>
+                      <div className="w-full h-1.5 bg-gray-700/50 rounded-full">
+                        <div 
+                          className={`h-full ${memberStatus.color} rounded-full transition-all`} 
+                          style={{width: `${memberStatus.progress}%`}}
+                        ></div>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Position: {member.payoutPosition} | Total: ${member.totalContributions}
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-700/50 rounded-full">
-                      <div 
-                        className={`h-full ${memberStatus.color} rounded-full transition-all`} 
-                        style={{width: `${memberStatus.progress}%`}}
-                      ></div>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      Position: {member.payoutPosition} | Total: ${member.totalContributions}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-center text-gray-400 py-8">
-                <p>No members yet</p>
-                <p className="text-xs mt-2">Members will appear here when they join</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Contribution Level Card */}
-        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-6">Contribution Level</h3>
-          <div className="flex items-center justify-center mb-6">
-            <div className="relative w-28 h-28">
-              <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  className="text-gray-700/50"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  strokeDasharray={`${currentCircle ? (parseFloat(poolBalance) / (parseFloat(contributionAmount) * members.length)) * 100 * 2.2 : 0} ${100 * 2.2}`}
-                  className="text-yellow-500"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold">
-                  {currentCircle ? Math.round((parseFloat(poolBalance) / (parseFloat(contributionAmount) * members.length)) * 100) : 0}%
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-400">Amount Target:</span>
-              <span className="font-medium">${currentCircle ? (parseFloat(contributionAmount) * members.length).toFixed(2) : '0'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Current Balance:</span>
-              <span className="font-medium">${poolBalance}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Members:</span>
-              <span className="font-medium">{members.length}</span>
-            </div>
-            <div className="w-full h-2 bg-gray-700/50 rounded-full">
-              <div 
-                className="h-full bg-purple-500 rounded-full transition-all" 
-                style={{
-                  width: `${currentCircle ? Math.min((parseFloat(poolBalance) / (parseFloat(contributionAmount) * members.length)) * 100, 100) : 0}%`
-                }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Activity Card */}
-        <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Activity ({activityItems.length})</h3>
-            <div className="relative w-16 h-16">
-              <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  className="text-gray-700/50"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  strokeDasharray={`${activityItems.length > 0 ? Math.min(activityItems.length * 10, 100) * 2.2 : 0} ${100 * 2.2}`}
-                  className="text-green-500"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold">{activityItems.length}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            {activityItems.length > 0 ? (
-              activityItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      item.status === 'Successful' ? 'bg-green-500' :
-                      item.status === 'Failed' ? 'bg-red-500' : 'bg-yellow-500'
-                    }`}></div>
-                    <div>
-                      <p className="text-xs font-medium">{item.type}</p>
-                      <p className="text-xs text-gray-400">{item.date}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-medium">{item.amount}</p>
-                    <p className={`text-xs ${item.color}`}>{item.status}</p>
-                  </div>
+                  );
+                })
+              ) : (
+                <div className="text-center text-gray-400 py-8">
+                  <p>No members yet</p>
+                  <p className="text-xs mt-2">Members will appear here when they join</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center text-gray-400 py-8">
-                <p>No activity yet</p>
-                <p className="text-xs mt-2">Contributions will appear here</p>
+              )}
+            </div>
+          </div>
+
+          {/* Contribution Level Card */}
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-6">Contribution Level</h3>
+            <div className="flex items-center justify-center mb-6">
+              <div className="relative w-28 h-28">
+                <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="transparent"
+                    className="text-gray-700/50"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="transparent"
+                    strokeDasharray={`${(parseFloat(selectedCircle.poolBalance) / (parseFloat(selectedCircle.contributionAmount) * selectedCircle.members.length)) * 100 * 2.2} ${100 * 2.2}`}
+                    className="text-yellow-500"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-2xl font-bold">
+                    {Math.round((parseFloat(selectedCircle.poolBalance) / (parseFloat(selectedCircle.contributionAmount) * selectedCircle.members.length)) * 100)}%
+                  </span>
+                </div>
               </div>
-            )}
-            {activityItems.length > 0 && (
-              <div className="flex items-center justify-center mt-4">
-                <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1">
-                  <span>See more</span>
-                  <span>→</span>
-                </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-400">Amount Target:</span>
+                <span className="font-medium">${(parseFloat(selectedCircle.contributionAmount) * selectedCircle.members.length).toFixed(2)}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span className="text-gray-400">Current Balance:</span>
+                <span className="font-medium">${selectedCircle.poolBalance}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Members:</span>
+                <span className="font-medium">{selectedCircle.members.length}</span>
+              </div>
+              <div className="w-full h-2 bg-gray-700/50 rounded-full">
+                <div 
+                  className="h-full bg-purple-500 rounded-full transition-all" 
+                  style={{
+                    width: `${Math.min((parseFloat(selectedCircle.poolBalance) / (parseFloat(selectedCircle.contributionAmount) * selectedCircle.members.length)) * 100, 100)}%`
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity Card */}
+          <div className="bg-black-900/80 backdrop-blur border border-gray-700/50 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold">Activity ({selectedCircle.activity.length})</h3>
+              <div className="relative w-16 h-16">
+                <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 100 100">
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="transparent"
+                    className="text-gray-700/50"
+                  />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    stroke="currentColor"
+                    strokeWidth="6"
+                    fill="transparent"
+                    strokeDasharray={`${selectedCircle.activity.length > 0 ? Math.min(selectedCircle.activity.length * 10, 100) * 2.2 : 0} ${100 * 2.2}`}
+                    className="text-green-500"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-sm font-bold">{selectedCircle.activity.length}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {selectedCircle.activity.length > 0 ? (
+                selectedCircle.activity.map((item: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        item.status === 'Successful' ? 'bg-green-500' :
+                        item.status === 'Failed' ? 'bg-red-500' : 'bg-yellow-500'
+                      }`}></div>
+                      <div>
+                        <p className="text-xs font-medium">{item.type}</p>
+                        <p className="text-xs text-gray-400">{item.date}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-medium">{item.amount}</p>
+                      <p className={`text-xs ${item.color}`}>{item.status}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-gray-400 py-8">
+                  <p>No activity yet</p>
+                  <p className="text-xs mt-2">Contributions will appear here</p>
+                </div>
+              )}
+              {selectedCircle.activity.length > 0 && (
+                <div className="flex items-center justify-center mt-4">
+                  <button className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1">
+                    <span>See more</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+
     </div>
   );
 }
