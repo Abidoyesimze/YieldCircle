@@ -1,7 +1,10 @@
 'use client';
 
-import React from 'react';
-import { ChevronRight, DollarSign, Calendar, Gift, GraduationCap, Users, Activity as ActivityIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronRight, DollarSign, Calendar, Gift, GraduationCap, Users, Activity as ActivityIcon, Loader2 } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { ethers } from 'ethers';
+import { contracts } from '@/abi';
 
 interface SavingsGoalCardProps {
   title: string;
@@ -22,8 +25,21 @@ interface ActivityItem {
   type: string;
   description: string;
   amount: number;
-
   status: 'successful' | 'pending' | 'failed';
+}
+
+interface CircleData {
+  address: string;
+  name: string;
+  contributionAmount: string;
+  cycleDuration: string;
+  memberCount: number;
+  currentMembers: number;
+  poolBalance: string;
+  totalYieldEarned: string;
+  phase: string;
+  creator: string;
+  createdAt: string;
 }
 
 const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({
@@ -35,7 +51,7 @@ const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({
   amountTarget
 }) => {
   return (
-    <div className="bg-black-900 border border-gray-800 rounded-lg p-4">
+    <div className="bg-black-900 border border-gray-800 rounded-lg p-4 hover:border-teal-400/50 transition-colors cursor-pointer">
       <div className="flex items-center gap-2 mb-4">
         <div className="text-green-400">{icon}</div>
         <h3 className="text-white font-medium">{title}</h3>
@@ -43,68 +59,104 @@ const SavingsGoalCard: React.FC<SavingsGoalCardProps> = ({
       
       <div className="space-y-3">
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Weekly</span>
+          <span className="text-gray-400 text-sm">Cycle Duration</span>
           <span className="text-white text-sm">{weekly}</span>
         </div>
         
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Next payday</span>
+          <span className="text-gray-400 text-sm">Next Cycle</span>
           <span className="text-white text-sm">{nextPayday}</span>
         </div>
         
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Member</span>
+          <span className="text-gray-400 text-sm">Members</span>
           <span className="text-white text-sm">{member}</span>
         </div>
         
         <div className="flex justify-between items-center">
-          <span className="text-gray-400 text-sm">Amount Target</span>
-          <span className="text-white text-sm">{amountTarget}</span>
+          <span className="text-gray-400 text-sm">Contribution</span>
+          <span className="text-white text-sm">${amountTarget} USDT</span>
         </div>
       </div>
     </div>
   );
 };
 
-const DiscoverCircleCard: React.FC = () => {
-  const houseRentItems: HouseRentItem[] = [
-    { monthly: 20, duration: '6 month', status: 'active' },
-    { monthly: 20, duration: '6 month', status: 'active' },
-    { monthly: 20, duration: '6 month', status: 'completed' },
-    { monthly: 20, duration: '6 month', status: 'completed' }
-  ];
+const DiscoverCircleCard: React.FC<{ circles: CircleData[] }> = ({ circles }) => {
+  // Show first 4 circles or fill with empty states
+  const displayCircles = circles.slice(0, 4);
+  const emptySlots = Math.max(0, 4 - circles.length);
 
   return (
-    <div className="bg-black-900 border border-black-800 rounded-lg p-4">
-      <h3 className="text-white font-medium mb-4">Discover Circle</h3>
+    <div className="bg-black-900 border border-gray-800 rounded-lg p-4">
+      <h3 className="text-white font-medium mb-4">Available Circles ({circles.length})</h3>
       
       <div className="grid grid-cols-2 gap-4">
-        {houseRentItems.map((item, index) => (
+        {displayCircles.map((circle, index) => (
           <div key={index} className="space-y-3">
             <div className="text-center">
-              <div className="text-white text-xs mb-1">HOUSE RENT</div>
+              <div className="text-white text-xs mb-1 truncate">{circle.name.toUpperCase()}</div>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-xs">Monthly</span>
-                <span className="text-white text-xs">${item.monthly}</span>
+                <span className="text-gray-400 text-xs">Contribution</span>
+                <span className="text-white text-xs">${circle.contributionAmount}</span>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-gray-400 text-xs">Duration</span>
-                <span className="text-white text-xs">{item.duration}</span>
+                <span className="text-white text-xs">{circle.cycleDuration} days</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-xs">Members</span>
+                <span className="text-white text-xs">{circle.currentMembers}/{circle.memberCount}</span>
               </div>
             </div>
             
             <button 
               className={`w-full py-2 px-3 rounded text-xs font-medium ${
-                item.status === 'active' 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                circle.currentMembers < circle.memberCount
+                  ? 'bg-teal-500 text-white hover:bg-teal-600' 
+                  : 'bg-gray-500 text-gray-300 cursor-not-allowed'
               }`}
+              disabled={circle.currentMembers >= circle.memberCount}
             >
-              {item.status === 'active' ? 'Start Discovery' : 'Start Discovery'}
+              {circle.currentMembers < circle.memberCount ? 'Join Circle' : 'Circle Full'}
+            </button>
+          </div>
+        ))}
+        
+        {/* Empty slots */}
+        {Array.from({ length: emptySlots }).map((_, index) => (
+          <div key={`empty-${index}`} className="space-y-3">
+            <div className="text-center">
+              <div className="text-gray-600 text-xs mb-1">NO CIRCLES</div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-xs">Contribution</span>
+                <span className="text-gray-500 text-xs">-</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-xs">Duration</span>
+                <span className="text-gray-500 text-xs">-</span>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-xs">Members</span>
+                <span className="text-gray-500 text-xs">-</span>
+              </div>
+            </div>
+            
+            <button 
+              className="w-full py-2 px-3 rounded text-xs font-medium bg-gray-700 text-gray-400 cursor-not-allowed"
+              disabled
+            >
+              No Circles
             </button>
           </div>
         ))}
@@ -113,27 +165,14 @@ const DiscoverCircleCard: React.FC = () => {
   );
 };
 
-const ActivityCard: React.FC = () => {
-  const activities: ActivityItem[] = [
-    {
-      type: 'Transfer from Amila',
-      description: 'Sept 07, 19:30:06',
-      amount: 200,
-      status: 'successful'
-    },
-    {
-      type: 'Transfer to Collins',
-      description: 'Sept 07, 19:30:06',
-      amount: 200,
-      status: 'failed'
-    },
-    {
-      type: 'Transfer to Gbadamos',
-      description: 'Sept 07, 19:30:06',
-      amount: 200,
-      status: 'successful'
-    }
-  ];
+const ActivityCard: React.FC<{ circles: CircleData[] }> = ({ circles }) => {
+  // Generate activity from circles data
+  const activities: ActivityItem[] = circles.slice(0, 3).map(circle => ({
+    type: `Circle Created: ${circle.name}`,
+    description: circle.createdAt,
+    amount: parseFloat(circle.contributionAmount),
+    status: circle.currentMembers < circle.memberCount ? 'pending' : 'successful' as 'successful' | 'pending' | 'failed'
+  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -150,41 +189,183 @@ const ActivityCard: React.FC = () => {
 
   return (
     <div className="bg-black-900 border border-gray-800 rounded-lg p-4">
-      <h3 className="text-white font-medium mb-4">Activity</h3>
+      <h3 className="text-white font-medium mb-4">Recent Activity ({activities.length})</h3>
       
       <div className="space-y-4">
-        {activities.map((activity, index) => (
-          <div key={index} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-2 h-2 rounded-full ${
-                activity.status === 'successful' ? 'bg-green-400' : 
-                activity.status === 'failed' ? 'bg-red-400' : 'bg-yellow-400'
-              }`}></div>
-              <div>
-                <div className="text-white text-sm font-medium">{activity.type}</div>
-                <div className="text-gray-400 text-xs">{activity.description}</div>
+        {activities.length > 0 ? (
+          activities.map((activity, index) => (
+            <div key={index} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-2 h-2 rounded-full ${
+                  activity.status === 'successful' ? 'bg-green-400' : 
+                  activity.status === 'failed' ? 'bg-red-400' : 'bg-yellow-400'
+                }`}></div>
+                <div>
+                  <div className="text-white text-sm font-medium">{activity.type}</div>
+                  <div className="text-gray-400 text-xs">{activity.description}</div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="text-white text-sm font-medium">${activity.amount}</div>
+                <div className={`text-xs capitalize ${getStatusColor(activity.status)}`}>
+                  {activity.status}
+                </div>
               </div>
             </div>
-            
-            <div className="text-right">
-              <div className="text-white text-sm font-medium">${activity.amount}</div>
-              <div className={`text-xs capitalize ${getStatusColor(activity.status)}`}>
-                {activity.status}
-              </div>
-            </div>
+          ))
+        ) : (
+          <div className="text-center text-gray-400 py-8">
+            <p>No recent activity</p>
+            <p className="text-xs mt-2">Circle activities will appear here</p>
           </div>
-        ))}
+        )}
         
-        <button className="flex items-center justify-center gap-2 w-full mt-4 text-gray-400 hover:text-white transition-colors">
-          <span className="text-sm">See more</span>
-          <ChevronRight size={16} />
-        </button>
+        {activities.length > 0 && (
+          <button className="flex items-center justify-center gap-2 w-full mt-4 text-gray-400 hover:text-white transition-colors">
+            <span className="text-sm">See more</span>
+            <ChevronRight size={16} />
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
 const FinancialDashboard: React.FC = () => {
+  const { address, isConnected } = useAccount();
+  const [circles, setCircles] = useState<CircleData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch all circles from smart contracts
+  useEffect(() => {
+    const fetchAllCircles = async () => {
+      if (!isConnected) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Get provider and signer
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+
+        // Connect to SimpleYieldCircleFactory contract
+        const factoryContract = new ethers.Contract(
+          contracts.SimpleYieldCircleFactory.address,
+          contracts.SimpleYieldCircleFactory.abi,
+          signer
+        );
+
+        // Get circle count first
+        const circleCount = await factoryContract.getCircleCount();
+        
+        // Get all circles by accessing the public array
+        const allCircles = [];
+        for (let i = 0; i < circleCount; i++) {
+          const circleAddress = await factoryContract.allCircles(i);
+          allCircles.push(circleAddress);
+        }
+        
+        // Fetch details for each circle
+        const circleDetails = await Promise.all(
+          allCircles.map(async (circleAddress: string) => {
+            try {
+              const circleContract = new ethers.Contract(
+                circleAddress,
+                contracts.YieldCircle.abi,
+                signer
+              );
+
+              // Get basic circle info
+              const circleInfo = await circleContract.getCircleInfo();
+              const memberCount = await circleContract.getMemberCount();
+              const poolBalance = await circleContract.getPoolBalance();
+              const totalYieldEarned = await circleContract.getTotalYieldEarned();
+              const phase = await circleContract.getCurrentPhase();
+
+              return {
+                address: circleAddress,
+                name: circleInfo.name,
+                contributionAmount: ethers.formatUnits(circleInfo.contributionAmount, 6),
+                cycleDuration: (Number(circleInfo.cycleDuration) / (24 * 60 * 60)).toString(), // Convert to days
+                memberCount: Number(memberCount),
+                currentMembers: Number(memberCount), // For now, assume all members are active
+                poolBalance: ethers.formatUnits(poolBalance, 6),
+                totalYieldEarned: ethers.formatUnits(totalYieldEarned, 6),
+                phase: phase,
+                creator: circleInfo.creator,
+                createdAt: new Date(Number(circleInfo.createdAt) * 1000).toLocaleDateString()
+              };
+            } catch (error) {
+              console.error(`Error fetching circle ${circleAddress}:`, error);
+              return null;
+            }
+          })
+        );
+
+        // Filter out null results and set circles
+        setCircles(circleDetails.filter(circle => circle !== null));
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching circles:', error);
+        setError('Failed to load circles');
+        setLoading(false);
+      }
+    };
+
+    fetchAllCircles();
+  }, [isConnected]);
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-400 mb-6">Please connect your wallet to discover yield circles.</p>
+          <button 
+            onClick={() => window.location.href = '/'} 
+            className="bg-teal-400 text-black px-6 py-2 rounded-lg hover:bg-teal-300 transition-colors"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-teal-400 mx-auto mb-4" />
+          <p className="text-gray-400">Loading circles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Error</h2>
+          <p className="text-gray-400 mb-6">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-teal-400 text-black px-6 py-2 rounded-lg hover:bg-teal-300 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Get top 4 circles for display
+  const topCircles = circles.slice(0, 4);
+
   return (
     <div className="min-h-screen bg-black p-6">
       {/* Grid pattern background */}
@@ -193,51 +374,69 @@ const FinancialDashboard: React.FC = () => {
       </div>
       
       <div className="relative z-10 max-w-6xl mx-auto">
-        {/* Top section - Savings Goals */}
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Discover Yield Circles</h1>
+          <p className="text-gray-400">Find and join yield circles created by the community</p>
+        </div>
+
+        {/* Top section - Featured Circles */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <SavingsGoalCard
-            title="School Fee"
-            icon={<GraduationCap size={20} />}
-            weekly="0/52"
-            nextPayday="Sept. 24"
-            member={0}
-            amountTarget={0}
-          />
+          {topCircles.slice(0, 2).map((circle, index) => (
+            <SavingsGoalCard
+              key={index}
+              title={circle.name}
+              icon={<GraduationCap size={20} />}
+              weekly={`${circle.cycleDuration} days`}
+              nextPayday={circle.createdAt}
+              member={circle.currentMembers}
+              amountTarget={parseFloat(circle.contributionAmount)}
+            />
+          ))}
           
-          <SavingsGoalCard
-            title="Mom's Birthday Party"
-            icon={<Gift size={20} />}
-            weekly="0/52"
-            nextPayday="Sept. 24"
-            member={0}
-            amountTarget={0}
-          />
+          {/* Fill remaining slots if needed */}
+          {topCircles.length < 2 && (
+            <SavingsGoalCard
+              title="No Circles Available"
+              icon={<GraduationCap size={20} />}
+              weekly="0 days"
+              nextPayday="N/A"
+              member={0}
+              amountTarget={0}
+            />
+          )}
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <SavingsGoalCard
-            title="Christmas Contribution"
-            icon={<Gift size={20} />}
-            weekly="0/52"
-            nextPayday="Sept. 24"
-            member={0}
-            amountTarget={0}
-          />
+          {topCircles.slice(2, 4).map((circle, index) => (
+            <SavingsGoalCard
+              key={index + 2}
+              title={circle.name}
+              icon={<Gift size={20} />}
+              weekly={`${circle.cycleDuration} days`}
+              nextPayday={circle.createdAt}
+              member={circle.currentMembers}
+              amountTarget={parseFloat(circle.contributionAmount)}
+            />
+          ))}
           
-          <SavingsGoalCard
-            title="Student"
-            icon={<GraduationCap size={20} />}
-            weekly="0/52"
-            nextPayday="Sept. 24"
-            member={0}
-            amountTarget={0}
-          />
+          {/* Fill remaining slots if needed */}
+          {topCircles.length < 4 && topCircles.length >= 2 && (
+            <SavingsGoalCard
+              title="No More Circles"
+              icon={<Gift size={20} />}
+              weekly="0 days"
+              nextPayday="N/A"
+              member={0}
+              amountTarget={0}
+            />
+          )}
         </div>
         
         {/* Bottom section - Discover Circle and Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <DiscoverCircleCard />
-          <ActivityCard />
+          <DiscoverCircleCard circles={circles} />
+          <ActivityCard circles={circles} />
         </div>
       </div>
     </div>

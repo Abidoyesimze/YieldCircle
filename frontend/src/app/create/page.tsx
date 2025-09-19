@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
 import { Plus, Loader2, CheckCircle, AlertCircle } from "lucide-react"
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
-import { parseEther } from "viem"
+import { useAccount } from "wagmi"
+import { ethers } from "ethers"
 import { contracts } from "@/abi"
+import { useRouter } from "next/navigation"
 
 export default function CreateCirclePage() {
   const { address, isConnected } = useAccount()
+  const router = useRouter()
   const [formData, setFormData] = useState({
     circleName: "",
     contributionAmount: "",
@@ -23,35 +25,9 @@ export default function CreateCirclePage() {
   const [circleId, setCircleId] = useState<string | null>(null)
   const [invitationLink, setInvitationLink] = useState<string | null>(null)
   const [members, setMembers] = useState<string[]>([address || ""])
-
-  // Contract write hook
-  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract()
-  
-  // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  })
-
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      // Transaction confirmed successfully
-      const newCircleId = generateCircleId()
-      setCircleId(newCircleId)
-      const link = generateInvitationLink(newCircleId)
-      setInvitationLink(link)
-      setSuccess(true)
-      setIsCreating(false)
-    }
-  }, [isConfirmed, hash])
-
-  // Handle contract errors
-  useEffect(() => {
-    if (contractError) {
-      setError("Transaction failed. Please try again.")
-      setIsCreating(false)
-    }
-  }, [contractError])
+  const [txHash, setTxHash] = useState<string | null>(null)
+  const [redirectCountdown, setRedirectCountdown] = useState(3)
+  const [isConfirming, setIsConfirming] = useState(false)
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
@@ -67,8 +43,8 @@ export default function CreateCirclePage() {
       setError("Circle name is required")
       return false
     }
-    if (!formData.contributionAmount || parseFloat(formData.contributionAmount) <= 0) {
-      setError("Contribution amount must be greater than 0")
+    if (!formData.contributionAmount || parseFloat(formData.contributionAmount) < 10) {
+      setError("Contribution amount must be at least $10 USDT")
       return false
     }
     if (!formData.agreeToTerms) {
@@ -111,14 +87,54 @@ export default function CreateCirclePage() {
       setCircleId(newCircleId)
       
       // Convert contribution amount to USDT (6 decimals)
-      const contributionAmount = parseEther(formData.contributionAmount)
+      const contributionAmount = ethers.parseUnits(formData.contributionAmount, 6)
       
       // Convert cycle duration to seconds
       const cycleDurationSeconds = BigInt(parseInt(formData.cycleDuration) * 24 * 60 * 60)
       
-      // Create circle with creator as first member
-      const initialMembers = [address!]
+      // Create circle with creator + placeholder members for invitation system
+      const creatorAddress = address!
+      const targetMemberCount = parseInt(formData.memberCount)
+      
+      // Validate member count
+      if (targetMemberCount < 2) {
+        throw new Error("Minimum 2 members required")
+      }
+      if (targetMemberCount > 20) {
+        throw new Error("Maximum 20 members allowed")
+      }
+      
+      // Create placeholder addresses for the remaining slots
+      // These will be replaced when people join via invitation links
+      const placeholderAddresses: string[] = []
+      for (let i = 1; i < targetMemberCount; i++) {
+        // Generate a valid placeholder address (will be replaced when someone joins)
+        // Using a pattern that's clearly a placeholder
+        const placeholder = `0x${'1'.repeat(40)}`
+        placeholderAddresses.push(placeholder)
+      }
+      
+      // Create initial members array with creator + placeholders
+      const initialMembers = [creatorAddress, ...placeholderAddresses]
       setMembers(initialMembers)
+      
+      console.log("Creating circle with:", {
+        creator: creatorAddress,
+        targetMembers: targetMemberCount,
+        placeholderSlots: placeholderAddresses.length,
+        note: "Placeholders will be replaced when people join via invitation links"
+      })
+      
+      // SimpleYieldCircleFactory validation (but YieldCircle has stricter requirements)
+      const contributionInUSD = parseFloat(formData.contributionAmount)
+      if (contributionInUSD < 10) {
+        throw new Error("Minimum contribution is $10 USDT (YieldCircle requirement)")
+      }
+      if (contributionInUSD > 10000) {
+        throw new Error("Maximum contribution is $10,000 USDT")
+      }
+      
+      // Member validation is now handled above in the member parsing logic
       
       console.log("Creating circle with:", {
         circleId: newCircleId,
@@ -129,26 +145,169 @@ export default function CreateCirclePage() {
         members: initialMembers,
       })
       
-      // Create circle using YieldCircleFactory
-      writeContract({
-        address: contracts.YieldCircleFactory.address as `0x${string}`,
-        abi: contracts.YieldCircleFactory.abi,
-        functionName: 'createCircle',
-        args: [
-          'family', // template name (family, friends, community)
-          initialMembers,
-          contributionAmount,
-          cycleDurationSeconds,
-          formData.circleName
-        ]
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+      
+      console.log("Contract details:", {
+        factoryAddress: contracts.SimpleYieldCircleFactory.address,
+        abiLength: contracts.SimpleYieldCircleFactory.abi.length,
+        signerAddress: await signer.getAddress()
       })
       
-      // Transaction will be handled by useWaitForTransactionReceipt hook
+      // Create contract instance
+      const factoryContract = new ethers.Contract(
+        contracts.SimpleYieldCircleFactory.address,
+        contracts.SimpleYieldCircleFactory.abi,
+        signer
+      )
       
-    } catch (err) {
+              // Check if contract exists
+              const code = await provider.getCode(contracts.SimpleYieldCircleFactory.address)
+              if (code === '0x') {
+                throw new Error(`No contract found at address ${contracts.SimpleYieldCircleFactory.address}`)
+              }
+              
+              // Check if contract is paused
+              try {
+                const isPaused = await factoryContract.paused()
+                console.log("Contract paused status:", isPaused)
+                if (isPaused) {
+                  throw new Error("Contract is currently paused")
+                }
+              } catch (err: any) {
+                console.log("Could not check pause status:", err)
+                if (err.message && err.message.includes("paused")) {
+                  throw err // Re-throw pause errors
+                }
+              }
+              
+              // SimpleYieldCircleFactory doesn't use templates, skip template check
+              console.log("Using SimpleYieldCircleFactory - no template validation needed")
+              
+              // Test basic contract functionality
+              try {
+                const totalCircles = await factoryContract.getCircleCount()
+                const maxCirclesPerUser = await factoryContract.maxCirclesPerUser()
+                const maxTotalCircles = await factoryContract.maxTotalCircles()
+                
+                console.log("Contract state:", {
+                  totalCircles: totalCircles.toString(),
+                  maxCirclesPerUser: maxCirclesPerUser.toString(),
+                  maxTotalCircles: maxTotalCircles.toString()
+                })
+              } catch (err: any) {
+                console.log("Could not check contract state:", err)
+              }
+              
+              // Check user's circle count and creation delay
+              try {
+                const userCircleCount = await factoryContract.circleCount(address)
+                const lastCreation = await factoryContract.lastCircleCreation(address)
+                const minDelay = await factoryContract.minCircleCreationDelay()
+                const currentTime = Math.floor(Date.now() / 1000)
+                const timeSinceLastCreation = currentTime - parseInt(lastCreation.toString())
+                const canCreate = currentTime >= parseInt(lastCreation.toString()) + parseInt(minDelay.toString())
+                
+                console.log("User limits:", {
+                  circleCount: userCircleCount.toString(),
+                  lastCreation: lastCreation.toString(),
+                  minDelay: minDelay.toString(),
+                  currentTime: currentTime,
+                  timeSinceLastCreation: timeSinceLastCreation,
+                  canCreate: canCreate,
+                  timeUntilNextAllowed: canCreate ? 0 : parseInt(minDelay.toString()) - timeSinceLastCreation
+                })
+                
+                if (!canCreate) {
+                  const hoursLeft = Math.ceil((parseInt(minDelay.toString()) - timeSinceLastCreation) / 3600)
+                  throw new Error(`You must wait ${hoursLeft} more hours before creating another circle`)
+                }
+              } catch (err: any) {
+                console.log("Could not check user limits:", err)
+                if (err.message && err.message.includes("wait")) {
+                  throw err // Re-throw creation delay errors
+                }
+              }
+              
+              // Check contract dependencies
+              try {
+                const usdtAddress = await factoryContract.USDT()
+                const yieldManagerAddress = await factoryContract.yieldManager()
+                const randomGeneratorAddress = await factoryContract.randomGenerator()
+                
+                console.log("Contract dependencies:", {
+                  usdt: usdtAddress,
+                  yieldManager: yieldManagerAddress,
+                  randomGenerator: randomGeneratorAddress,
+                  expectedUSDT: contracts.USDT.address,
+                  expectedYieldManager: contracts.KaiaYieldStrategyManager.address,
+                  expectedRandomGenerator: contracts.RandomGenerator.address
+                })
+              } catch (err) {
+                console.log("Could not check dependencies:", err)
+              }
+      
+      console.log("Calling createCircle with:", {
+        members: initialMembers,
+        memberCount: initialMembers.length,
+        creatorAddress: creatorAddress,
+        contributionAmount: contributionAmount.toString(),
+        cycleDuration: cycleDurationSeconds.toString(),
+        name: formData.circleName
+      })
+      
+      // Additional validation before sending transaction
+      console.log("Validation checks:", {
+        memberCountValid: initialMembers.length >= 2 && initialMembers.length <= 20,
+        contributionValid: contributionAmount >= BigInt(10e6) && contributionAmount <= BigInt(10000e6), // YieldCircle requires min 10 USDT
+        durationValid: cycleDurationSeconds >= BigInt(86400) && cycleDurationSeconds <= BigInt(31536000), // 1 day to 365 days
+        creatorInMembers: initialMembers.includes(creatorAddress),
+        noDuplicates: new Set(initialMembers).size === initialMembers.length
+      })
+      
+      // Call createCircle function (SimpleYieldCircleFactory doesn't need template name)
+      const tx = await factoryContract.createCircle(
+        initialMembers,
+        contributionAmount,
+        cycleDurationSeconds,
+        formData.circleName
+      )
+      
+      setTxHash(tx.hash)
+      setIsConfirming(true)
+      
+      // Wait for transaction confirmation
+      const receipt = await tx.wait()
+      
+      if (receipt.status === 1) {
+        // Transaction successful
+        const link = generateInvitationLink(newCircleId)
+        setInvitationLink(link)
+        setSuccess(true)
+        setIsCreating(false)
+        setIsConfirming(false)
+        
+        // Start countdown and redirect to admin dashboard after 3 seconds
+        const countdownInterval = setInterval(() => {
+          setRedirectCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval)
+              router.push('/admin')
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+      } else {
+        throw new Error("Transaction failed")
+      }
+      
+    } catch (err: any) {
       console.error("Error creating circle:", err)
-      setError("Failed to create circle. Please try again.")
+      setError(err.message || "Failed to create circle. Please try again.")
       setIsCreating(false)
+      setIsConfirming(false)
     }
   }
 
@@ -174,7 +333,12 @@ export default function CreateCirclePage() {
           <div className="text-center mb-8">
             <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
             <h1 className="text-3xl font-bold mb-2">Circle Created Successfully!</h1>
-            <p className="text-gray-400">Your yield circle is now active and ready for members.</p>
+            <p className="text-gray-400 mb-4">Your yield circle is now active and ready for members.</p>
+            <div className="bg-teal-900/20 border border-teal-500/30 rounded-lg p-4 max-w-md mx-auto">
+              <p className="text-teal-300 text-sm">
+                Redirecting to your created circles dashboard in {redirectCountdown} seconds...
+              </p>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
@@ -260,7 +424,7 @@ export default function CreateCirclePage() {
                     </Button>
                     <Button
                       onClick={() => {
-                        const message = `Join my Yield Circle "${formData.circleName}"! Contribute ${formData.contributionAmount} USDT every ${formData.cycleDuration} days and earn DeFi yields. Join here: ${invitationLink}`
+                        const message = `Join my Yield Circle "${formData.circleName}"! We need ${formData.memberCount} members to contribute ${formData.contributionAmount} USDT every ${formData.cycleDuration} days and earn DeFi yields. Join here: ${invitationLink}`
                         const encodedMessage = encodeURIComponent(message)
                         window.open(`https://twitter.com/intent/tweet?text=${encodedMessage}`, '_blank')
                       }}
@@ -276,9 +440,9 @@ export default function CreateCirclePage() {
               <div className="mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
                 <h4 className="text-sm font-medium text-blue-400 mb-2">How it works:</h4>
                 <ul className="text-xs text-blue-300 space-y-1">
-                  <li>• Share the invitation link with friends</li>
-                  <li>• They'll join your circle automatically</li>
-                  <li>• Once all {formData.memberCount} members join, the circle starts</li>
+                  <li>• Your circle has been created for {formData.memberCount} members</li>
+                  <li>• Share the invitation link with friends and family</li>
+                  <li>• Circle starts when all {formData.memberCount} members join</li>
                   <li>• Members contribute {formData.contributionAmount} USDT every {formData.cycleDuration} days</li>
                   <li>• Funds are invested in DeFi for yield generation</li>
                 </ul>
@@ -289,14 +453,20 @@ export default function CreateCirclePage() {
           {/* Action Buttons */}
           <div className="flex justify-center space-x-4 mt-8">
             <Button 
-              onClick={() => window.location.href = '/discover-circle'}
+              onClick={() => router.push('/discover-circle')}
               className="bg-gray-700 text-white hover:bg-gray-600"
             >
               View All Circles
             </Button>
             <Button 
-              onClick={() => window.location.href = '/user'}
+              onClick={() => router.push('/admin')}
               className="bg-teal-400 text-black hover:bg-teal-300"
+            >
+              View Created Circles
+            </Button>
+            <Button 
+              onClick={() => router.push('/user')}
+              className="bg-purple-500 text-white hover:bg-purple-400"
             >
               Manage My Circles
             </Button>
@@ -335,7 +505,7 @@ export default function CreateCirclePage() {
               <input
                   type="number"
                   step="0.01"
-                  min="1"
+                  min="10"
                   placeholder="100"
                   value={formData.contributionAmount}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange("contributionAmount", e.target.value)}
@@ -369,13 +539,20 @@ export default function CreateCirclePage() {
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange("memberCount", e.target.value)}
                 className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-teal-400 focus:outline-none transition-colors"
               >
+                <option value="2">2 members</option>
                 <option value="3">3 members</option>
                 <option value="4">4 members</option>
                 <option value="5">5 members</option>
                 <option value="6">6 members</option>
                 <option value="8">8 members</option>
                 <option value="10">10 members</option>
+                <option value="12">12 members</option>
+                <option value="15">15 members</option>
+                <option value="20">20 members</option>
               </select>
+              <p className="text-xs text-gray-400">
+                Choose how many people you want in your circle. You'll get an invitation link to share with friends and family.
+              </p>
             </div>
 
             {/* Terms Agreement */}
@@ -409,15 +586,15 @@ export default function CreateCirclePage() {
             )}
 
             {/* Create Button */}
-        <Button
-          type="submit"
-          disabled={!isConnected || isCreating || isPending || isConfirming}
+            <Button
+              type="submit"
+          disabled={!isConnected || isCreating || isConfirming}
           className="w-full bg-teal-400 text-black hover:bg-teal-300 disabled:bg-gray-600 disabled:text-gray-400 transition-all duration-300 h-12 rounded-lg font-medium"
         >
-          {isCreating || isPending || isConfirming ? (
+          {isCreating || isConfirming ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              {isPending ? "Confirm in Wallet..." : isConfirming ? "Creating Circle..." : "Creating..."}
+              {isCreating ? "Confirm in Wallet..." : "Creating Circle..."}
             </>
           ) : (
             <>
@@ -425,19 +602,19 @@ export default function CreateCirclePage() {
               Create Circle
             </>
           )}
-        </Button>
+            </Button>
 
             {/* Transaction Hash */}
-            {hash && (
+            {txHash && (
               <div className="text-center">
                 <p className="text-sm text-gray-400">Transaction Hash:</p>
                 <a 
-                  href={`https://kairos.kaiascope.com/tx/${hash}`}
+                  href={`https://kairos.kaiascope.com/tx/${txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-teal-400 hover:text-teal-300 text-sm break-all"
                 >
-                  {hash}
+                  {txHash}
                 </a>
               </div>
             )}

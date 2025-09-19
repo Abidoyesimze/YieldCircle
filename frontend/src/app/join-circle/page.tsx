@@ -2,175 +2,131 @@
 
 import React, { useState, useEffect } from "react"
 import { Button } from "../components/ui/button"
-import { CheckCircle, AlertCircle, Users, DollarSign, Clock, UserPlus } from "lucide-react"
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
-import { parseEther } from "viem"
+import { CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { useAccount } from "wagmi"
+import { ethers } from "ethers"
 import { contracts } from "@/abi"
 
 export default function JoinCirclePage() {
   const { address, isConnected } = useAccount()
-  const [circleData, setCircleData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isJoining, setIsJoining] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [invitationCode, setInvitationCode] = useState<string | null>(null)
   const [circleId, setCircleId] = useState<string | null>(null)
-
-  // Contract write hook
-  const { writeContract, data: hash, error: contractError, isPending } = useWriteContract()
-  
-  // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  })
-
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      // Transaction confirmed successfully
-      setSuccess(true)
-      setIsJoining(false)
-    }
-  }, [isConfirmed, hash])
-
-  // Handle contract errors
-  useEffect(() => {
-    if (contractError) {
-      setError("Transaction failed. Please try again.")
-      setIsJoining(false)
-    }
-  }, [contractError])
+  const [circleInfo, setCircleInfo] = useState<any>(null)
+  const [isJoining, setIsJoining] = useState(false)
+  const [isJoined, setIsJoined] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [txHash, setTxHash] = useState<string | null>(null)
 
   useEffect(() => {
-    // Parse URL parameters
+    // Extract circle ID from URL parameters
     const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
-    const id = urlParams.get('circleId')
+    const invitationCode = urlParams.get('invite')
     
-    if (code && id) {
-      setInvitationCode(code)
-      setCircleId(id)
-      // In a real implementation, you'd fetch circle data from your backend/contract
-      // For now, we'll simulate the data
-      simulateCircleData(id)
+    if (invitationCode) {
+      try {
+        // Decode the invitation code to get circle ID
+        const decoded = atob(invitationCode)
+        const [id] = decoded.split('-')
+        setCircleId(id)
+      } catch (err) {
+        setError("Invalid invitation link")
+      }
     } else {
-      setError("Invalid invitation link")
-      setIsLoading(false)
+      setError("No invitation code found")
     }
   }, [])
 
-  const simulateCircleData = (id: string) => {
-    // Simulate fetching circle data
-    setTimeout(() => {
-      setCircleData({
-        id: id,
-        name: "Family Savings Circle",
-        contributionAmount: "100",
-        cycleDuration: "30",
-        memberCount: "5",
-        currentMembers: 2,
-        members: [
-          "0x1234567890123456789012345678901234567890",
-          "0x0987654321098765432109876543210987654321"
-        ],
-        creator: "0x1234567890123456789012345678901234567890",
-        status: "active",
-        totalPool: "500"
-      })
-      setIsLoading(false)
-    }, 1000)
-  }
+  const joinCircle = async () => {
+    if (!address || !circleId) return
 
-  const handleJoinCircle = async () => {
-    if (!isConnected) {
-      setError("Please connect your wallet first")
-      return
-    }
-
-    if (!circleData) {
-      setError("Circle data not found")
-      return
-    }
+    setIsJoining(true)
+    setError(null)
 
     try {
-      setIsJoining(true)
-      
-      // Convert contribution amount to USDT (6 decimals)
-      const contributionAmount = parseEther(circleData.contributionAmount)
-      
-      console.log("Joining circle:", {
-        circleId: circleData.id,
-        member: address,
-        contributionAmount: circleData.contributionAmount,
+      // Get provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
+
+      // Connect to YieldCircle contract
+      const yieldCircleContract = new ethers.Contract(
+        contracts.YieldCircle.address,
+        contracts.YieldCircle.abi,
+        signer
+      )
+
+      // Call joinCircle function
+      const tx = await yieldCircleContract.joinCircle("", { // Empty display name for now
+        gasLimit: 500000
       })
       
-      // Join circle using YieldCircle contract
-      writeContract({
-        address: circleData.id as `0x${string}`, // Circle address from invitation
-        abi: contracts.YieldCircle.abi,
-        functionName: 'joinCircle',
-        args: ['Member'] // Display name for the member
-      })
+      setTxHash(tx.hash)
+      await tx.wait()
       
-      // Transaction will be handled by useWaitForTransactionReceipt hook
-      
-    } catch (err) {
+      setIsJoined(true)
+      setIsJoining(false)
+    } catch (err: any) {
       console.error("Error joining circle:", err)
-      setError("Failed to join circle. Please try again.")
+      setError(err.message || "Failed to join circle")
       setIsJoining(false)
     }
   }
 
-  if (isLoading) {
+  if (!isConnected) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading circle information...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (success) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Welcome to the Circle!</h1>
-          <p className="text-gray-400 mb-6">You've successfully joined "{circleData?.name}". You'll be notified when the circle starts.</p>
-          <div className="space-y-3">
-            <Button 
-              onClick={() => window.location.href = '/user'}
-              className="w-full bg-teal-400 text-black hover:bg-teal-300"
-            >
-              View My Circles
-            </Button>
-            <Button 
-              onClick={() => window.location.href = '/discover-circle'}
-              className="w-full bg-gray-700 text-white hover:bg-gray-600"
-            >
-              Discover More Circles
-            </Button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error && !circleData) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Invalid Invitation</h1>
-          <p className="text-gray-400 mb-6">{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Connect Wallet</h2>
+          <p className="text-gray-300 mb-6">
+            Please connect your wallet to join this yield circle.
+          </p>
           <Button 
-            onClick={() => window.location.href = '/discover-circle'}
-            className="bg-teal-400 text-black hover:bg-teal-300"
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-teal-400 text-black hover:bg-teal-300"
           >
-            Discover Circles
+            Go to Home
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md w-full text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Error</h2>
+          <p className="text-gray-300 mb-6">{error}</p>
+          <Button 
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-teal-400 text-black hover:bg-teal-300"
+          >
+            Go to Home
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isJoined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+        <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md w-full text-center">
+          <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Successfully Joined!</h2>
+          <p className="text-gray-300 mb-6">
+            You have successfully joined the yield circle. The circle will start once all members have joined.
+          </p>
+          {txHash && (
+            <p className="text-xs text-gray-400 mb-4">
+              Transaction: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+            </p>
+          )}
+          <Button 
+            onClick={() => window.location.href = '/user'}
+            className="w-full bg-teal-400 text-black hover:bg-teal-300"
+          >
+            View My Circles
           </Button>
         </div>
       </div>
@@ -178,160 +134,57 @@ export default function JoinCirclePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-2xl p-8 max-w-md w-full">
         <div className="text-center mb-8">
-          <UserPlus className="w-16 h-16 text-teal-400 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold mb-2">Join Yield Circle</h1>
-          <p className="text-gray-400">You've been invited to join a savings circle</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Join Yield Circle</h1>
+          <p className="text-gray-300">
+            You've been invited to join a yield circle!
+          </p>
         </div>
 
-        {/* Circle Information */}
-        <div className="border border-gray-700 rounded-xl p-6 bg-gray-900/50 mb-6">
-          <h2 className="text-xl font-semibold mb-4">{circleData?.name}</h2>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Circle Details */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <DollarSign className="w-5 h-5 text-teal-400" />
-                <div>
-                  <p className="text-sm text-gray-400">Contribution Amount</p>
-                  <p className="text-lg font-semibold">{circleData?.contributionAmount} USDT</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Clock className="w-5 h-5 text-teal-400" />
-                <div>
-                  <p className="text-sm text-gray-400">Cycle Duration</p>
-                  <p className="text-lg font-semibold">{circleData?.cycleDuration} days</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Users className="w-5 h-5 text-teal-400" />
-                <div>
-                  <p className="text-sm text-gray-400">Members</p>
-                  <p className="text-lg font-semibold">{circleData?.currentMembers}/{circleData?.memberCount}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Circle Stats */}
-            <div className="space-y-4">
-              <div className="p-4 bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-400">Total Pool Size</p>
-                <p className="text-xl font-bold text-teal-400">{circleData?.totalPool} USDT</p>
-              </div>
-              
-              <div className="p-4 bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-400">Your Contribution</p>
-                <p className="text-xl font-bold text-white">{circleData?.contributionAmount} USDT</p>
-              </div>
+        <div className="space-y-6">
+          <div className="bg-gray-700/50 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-white mb-2">Circle Details</h3>
+            <div className="space-y-2 text-sm text-gray-300">
+              <p>Circle ID: {circleId}</p>
+              <p>Your Address: {address?.slice(0, 10)}...{address?.slice(-8)}</p>
             </div>
           </div>
-        </div>
 
-        {/* Current Members */}
-        <div className="border border-gray-700 rounded-xl p-6 bg-gray-900/50 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Current Members</h3>
-          <div className="space-y-2">
-            {circleData?.members.map((member: string, index: number) => (
-              <div key={index} className="flex items-center space-x-3 p-2 bg-gray-800 rounded-lg">
-                <div className="w-8 h-8 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-sm">
-                  {index + 1}
-                </div>
-                <span className="text-white text-sm font-mono">
-                  {member === circleData?.creator ? "Creator" : `${member.slice(0, 6)}...${member.slice(-4)}`}
-                </span>
-                {member === circleData?.creator && (
-                  <span className="text-xs bg-teal-400 text-black px-2 py-1 rounded">Admin</span>
-                )}
-              </div>
-            ))}
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-blue-400 mb-2">What happens next:</h4>
+            <ul className="text-xs text-blue-300 space-y-1">
+              <li>• You'll join the circle immediately</li>
+              <li>• Circle starts when all members join</li>
+              <li>• You'll contribute the specified amount each cycle</li>
+              <li>• Earn DeFi yields on your contributions</li>
+            </ul>
           </div>
-        </div>
 
-        {/* How it Works */}
-        <div className="border border-gray-700 rounded-xl p-6 bg-gray-900/50 mb-6">
-          <h3 className="text-lg font-semibold mb-4">How it Works</h3>
-          <div className="space-y-3 text-sm text-gray-300">
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-xs mt-0.5">1</div>
-              <p>Join the circle by confirming your participation</p>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-xs mt-0.5">2</div>
-              <p>Once all {circleData?.memberCount} members join, the circle becomes active</p>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-xs mt-0.5">3</div>
-              <p>Each member contributes {circleData?.contributionAmount} USDT every {circleData?.cycleDuration} days</p>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-xs mt-0.5">4</div>
-              <p>Funds are invested in DeFi protocols to generate yield</p>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 bg-teal-400 rounded-full flex items-center justify-center text-black font-bold text-xs mt-0.5">5</div>
-              <p>Payouts rotate among members each cycle</p>
-            </div>
-          </div>
-        </div>
+          <Button
+            onClick={joinCircle}
+            disabled={isJoining}
+            className="w-full bg-teal-400 text-black hover:bg-teal-300 disabled:opacity-50"
+          >
+            {isJoining ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Joining Circle...
+              </>
+            ) : (
+              "Join Circle"
+            )}
+          </Button>
 
-        {/* Error Message */}
-        {error && (
-          <div className="flex items-center space-x-2 p-3 bg-red-900/20 border border-red-500/30 rounded-lg mb-6">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <span className="text-red-400 text-sm">{error}</span>
-          </div>
-        )}
-
-        {/* Wallet Connection Status */}
-        {!isConnected && (
-          <div className="flex items-center space-x-2 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-lg mb-6">
-            <AlertCircle className="w-5 h-5 text-yellow-400" />
-            <span className="text-yellow-400 text-sm">Please connect your wallet to join the circle</span>
-          </div>
-        )}
-
-        {/* Join Button */}
-        <Button
-          onClick={handleJoinCircle}
-          disabled={!isConnected || isJoining || isPending || isConfirming || circleData?.currentMembers >= circleData?.memberCount}
-          className="w-full bg-teal-400 text-black hover:bg-teal-300 disabled:bg-gray-600 disabled:text-gray-400 transition-all duration-300 h-12 rounded-lg font-medium"
-        >
-          {isJoining || isPending || isConfirming ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
-              {isPending ? "Confirm in Wallet..." : isConfirming ? "Joining Circle..." : "Joining..."}
-            </>
-          ) : circleData?.currentMembers >= circleData?.memberCount ? (
-            "Circle is Full"
-          ) : (
-            <>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Join Circle
-            </>
+          {txHash && (
+            <div className="text-center">
+              <p className="text-xs text-gray-400">
+                Transaction: {txHash.slice(0, 10)}...{txHash.slice(-8)}
+              </p>
+            </div>
           )}
-        </Button>
-
-        {/* Transaction Hash */}
-        {hash && (
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-400">Transaction Hash:</p>
-            <a 
-              href={`https://kairos.kaiascope.com/tx/${hash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-teal-400 hover:text-teal-300 text-sm break-all"
-            >
-              {hash}
-            </a>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
