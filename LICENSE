@@ -1,0 +1,113 @@
+MIT License
+
+Copyright (c) 2025 YieldCircle Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## Third-Party Licenses
+
+This project includes third-party libraries and dependencies:
+
+### Smart Contracts
+- **OpenZeppelin Contracts** - MIT License
+- **Chainlink VRF** - MIT License
+- **Hardhat** - MIT License
+
+### Frontend
+- **Next.js** - MIT License
+- **React** - MIT License
+- **RainbowKit** - MIT License
+- **Wagmi** - MIT License
+- **Tailwind CSS** - MIT License
+- **Lucide React** - MIT License
+
+### Development Tools
+- **TypeScript** - Apache License 2.0
+- **Ethers.js** - MIT License
+- **Viem** - MIT License
+
+---
+
+## Disclaimer
+
+**IMPORTANT LEGAL NOTICE**
+
+This software is provided "as is" without warranty of any kind. The use of this software involves significant risks, including but not limited to:
+
+### Financial Risks
+- **Smart Contract Risk**: Code bugs, exploits, or vulnerabilities may result in loss of funds
+- **Market Risk**: Cryptocurrency and DeFi markets are highly volatile
+- **Liquidity Risk**: Insufficient liquidity may prevent withdrawals
+- **Impermanent Loss**: Liquidity pool participation may result in losses
+
+### Technical Risks
+- **Network Risk**: Blockchain network congestion, forks, or failures
+- **Gas Risk**: High gas prices may make transactions uneconomical
+- **Wallet Risk**: Loss of private keys or wallet compromise
+- **Regulatory Risk**: Changing laws and regulations may affect usage
+
+### DeFi Protocol Risks
+- **Protocol Risk**: Underlying DeFi protocols may fail or be exploited
+- **Slippage Risk**: Large trades may experience significant slippage
+- **Oracle Risk**: Price feed failures may affect strategy selection
+- **Governance Risk**: Protocol governance changes may affect strategies
+
+### User Responsibilities
+Users of this software are responsible for:
+- Understanding the risks involved
+- Conducting their own research (DYOR)
+- Ensuring compliance with local laws
+- Maintaining secure wallet practices
+- Monitoring their investments
+
+### Limitation of Liability
+In no event shall the authors, contributors, or copyright holders be liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including, but not limited to, procurement of substitute goods or services; loss of use, data, or profits; or business interruption) however caused and on any theory of liability, whether in contract, strict liability, or tort (including negligence or otherwise) arising in any way out of the use of this software, even if advised of the possibility of such damage.
+
+### Regulatory Compliance
+This software is provided for educational and research purposes. Users must ensure compliance with all applicable laws and regulations in their jurisdiction. The authors make no representations about the legal status of this software in any jurisdiction.
+
+### No Investment Advice
+Nothing in this software or documentation constitutes financial, investment, legal, or tax advice. Users should consult with qualified professionals before making any financial decisions.
+
+---
+
+## Open Source Commitment
+
+YieldCircle is committed to open source principles:
+
+- **Transparency**: All code is publicly available and auditable
+- **Community**: Open to community contributions and feedback
+- **Innovation**: Encouraging innovation in DeFi and group savings
+- **Education**: Providing educational resources about DeFi risks and opportunities
+
+## Contact
+
+For questions about this license or the software:
+
+- **Email**: legal@yieldcircle.com
+- **Website**: https://yieldcircle.com
+- **GitHub**: https://github.com/your-username/yieldcircle
+
+---
+
+**Version**: 2.0.0  
+**Last Updated**: December 20, 2024  
+**License**: MIT
