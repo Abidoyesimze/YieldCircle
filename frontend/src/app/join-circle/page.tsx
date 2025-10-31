@@ -47,6 +47,9 @@ export default function JoinCirclePage() {
 
   const checkCircleStatus = async (circleAddr: string) => {
     try {
+      if (!window.ethereum) {
+        throw new Error('No ethereum provider found')
+      }
       const provider = new ethers.BrowserProvider(window.ethereum)
       const yieldCircleContract = new ethers.Contract(
         circleAddr,
@@ -76,6 +79,9 @@ export default function JoinCirclePage() {
 
     try {
       // Get provider and signer
+      if (!window.ethereum) {
+        throw new Error('No ethereum provider found')
+      }
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
 

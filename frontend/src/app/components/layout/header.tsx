@@ -1,12 +1,15 @@
 "use client";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useAppKit } from '@reown/appkit/react';
+import { useAccount } from 'wagmi';
 import Link from "next/link";
 import { useState } from "react";
-import { Menu, X, Users, Search, User, Calendar, Settings } from "lucide-react";
+import { Menu, X, Users, Search, Calendar, Settings } from "lucide-react";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { open } = useAppKit();
+  const { address, isConnected } = useAccount();
 
   const navigationItems = [
     { name: "Discover Circles", href: "/discover-circle", icon: Search },
@@ -49,105 +52,17 @@ export function Header() {
         </button>
       </div>
 
-      {/* Connect Wallet Button */}
+      {/* Connect Wallet Button - Desktop */}
       <div className="hidden md:block">
-        <ConnectButton.Custom>
-          {({
-            account,
-            chain,
-            openAccountModal,
-            openChainModal,
-            openConnectModal,
-            authenticationStatus,
-            mounted,
-          }) => {
-            const ready = mounted && authenticationStatus !== "loading";
-            const connected =
-              ready &&
-              account &&
-              chain &&
-              (!authenticationStatus || authenticationStatus === "authenticated");
-
-            return (
-              <div
-                {...(!ready && {
-                  "aria-hidden": true,
-                  style: {
-                    opacity: 0,
-                    pointerEvents: "none",
-                    userSelect: "none",
-                  },
-                })}
-              >
-                {(() => {
-                  if (!connected) {
-                    return (
-                      <button
-                        onClick={openConnectModal}
-                        type="button"
-                        className="border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                      >
-                        Connect Wallet
-                      </button>
-                    );
-                  }
-
-                  if (chain.unsupported) {
-                    return (
-                      <button
-                        onClick={openChainModal}
-                        type="button"
-                        className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                      >
-                        Wrong network
-                      </button>
-                    );
-                  }
-
-                  return (
-                    <div style={{ display: "flex", gap: 12 }}>
-                      <button
-                        onClick={openChainModal}
-                        type="button"
-                        className="border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                      >
-                        {chain.hasIcon && (
-                          <div
-                            style={{
-                              background: chain.iconBackground,
-                              width: 24,
-                              height: 24,
-                              borderRadius: 999,
-                              overflow: "hidden",
-                              marginRight: 4,
-                            }}
-                          >
-                            {chain.iconUrl && (
-                              <img
-                                alt={chain.name ?? "Chain icon"}
-                                src={chain.iconUrl}
-                                style={{ width: 24, height: 24 }}
-                              />
-                            )}
-                          </div>
-                        )}
-                        {chain.name}
-                      </button>
-                      <button
-                        onClick={openAccountModal}
-                        type="button"
-                        className="border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                      >
-                        {account.displayName}
-                        {account.displayBalance ? ` (${account.displayBalance})` : ""}
-                      </button>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          }}
-        </ConnectButton.Custom>
+        <button
+          onClick={() => open()}
+          type="button"
+          className="border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+        >
+          {isConnected && address 
+            ? `${address.slice(0, 6)}...${address.slice(-4)}` 
+            : "Connect Wallet"}
+        </button>
       </div>
 
       {/* Mobile Menu */}
@@ -169,102 +84,18 @@ export function Header() {
               );
             })}
             <div className="pt-4 border-t border-gray-700">
-              <ConnectButton.Custom>
-                {({
-                  account,
-                  chain,
-                  openAccountModal,
-                  openChainModal,
-                  openConnectModal,
-                  authenticationStatus,
-                  mounted,
-                }) => {
-                  const ready = mounted && authenticationStatus !== "loading";
-                  const connected =
-                    ready &&
-                    account &&
-                    chain &&
-                    (!authenticationStatus || authenticationStatus === "authenticated");
-
-                  return (
-                    <div
-                      {...(!ready && {
-                        "aria-hidden": true,
-                        style: {
-                          opacity: 0,
-                          pointerEvents: "none",
-                          userSelect: "none",
-                        },
-                      })}
-                    >
-                      {(() => {
-                        if (!connected) {
-                          return (
-                            <button
-                              onClick={openConnectModal}
-                              type="button"
-                              className="w-full border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                            >
-                              Connect Wallet
-                            </button>
-                          );
-                        }
-
-                        if (chain.unsupported) {
-                          return (
-                            <button
-                              onClick={openChainModal}
-                              type="button"
-                              className="w-full border-red-400 text-red-400 hover:bg-red-400 hover:text-white bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                            >
-                              Wrong network
-                            </button>
-                          );
-                        }
-
-                        return (
-                          <div className="space-y-2">
-                            <button
-                              onClick={openChainModal}
-                              type="button"
-                              className="w-full border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center space-x-2"
-                            >
-                              {chain.hasIcon && (
-                                <div
-                                  style={{
-                                    background: chain.iconBackground,
-                                    width: 20,
-                                    height: 20,
-                                    borderRadius: 999,
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  {chain.iconUrl && (
-                                    <img
-                                      alt={chain.name ?? "Chain icon"}
-                                      src={chain.iconUrl}
-                                      style={{ width: 20, height: 20 }}
-                                    />
-                                  )}
-                                </div>
-                              )}
-                              <span>{chain.name}</span>
-                            </button>
-                            <button
-                              onClick={openAccountModal}
-                              type="button"
-                              className="w-full border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
-                            >
-                              {account.displayName}
-                              {account.displayBalance ? ` (${account.displayBalance})` : ""}
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  );
+              <button
+                onClick={() => {
+                  open();
+                  setIsMobileMenuOpen(false);
                 }}
-              </ConnectButton.Custom>
+                type="button"
+                className="w-full border-teal-400 text-teal-400 hover:bg-teal-400 hover:text-black bg-transparent rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+              >
+                {isConnected && address 
+                  ? `${address.slice(0, 6)}...${address.slice(-4)}` 
+                  : "Connect Wallet"}
+              </button>
             </div>
           </nav>
         </div>
