@@ -248,6 +248,9 @@ const FinancialDashboard: React.FC = () => {
 
       try {
         // Get provider and signer
+        if (!window.ethereum) {
+          throw new Error('No ethereum provider found');
+        }
         const provider = new ethers.BrowserProvider(window.ethereum);
         const signer = await provider.getSigner();
 
